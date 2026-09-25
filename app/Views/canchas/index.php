@@ -41,24 +41,6 @@ $tipoFormateado = $tipoLabels[$filtros['tipo']] ?? '';
 <div style="background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:20px 0 0;">
     <div class="container">
 
-        <!-- Stepper del flujo de reserva -->
-        <div class="stepper" aria-label="Progreso de reserva">
-            <div class="step active" aria-current="step">
-                <span class="dot">1</span>
-                <span class="lbl"><span class="lbl-full">1. Selección de cancha</span><span class="lbl-short">Selección</span></span>
-            </div>
-            <span class="line" aria-hidden="true"></span>
-            <div class="step">
-                <span class="dot">2</span>
-                <span class="lbl"><span class="lbl-full">2. Pago y comprobante</span><span class="lbl-short">Pago</span></span>
-            </div>
-            <span class="line" aria-hidden="true"></span>
-            <div class="step">
-                <span class="dot">3</span>
-                <span class="lbl"><span class="lbl-full">3. Confirmación</span><span class="lbl-short">Confirmación</span></span>
-            </div>
-        </div>
-
         <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 pb-4">
             <div>
                 <span class="sec-label">Instalaciones deportivas</span>
@@ -198,7 +180,8 @@ $tipoFormateado = $tipoLabels[$filtros['tipo']] ?? '';
                             <!-- Acciones -->
                             <div class="d-grid gap-2">
                                 <?php if ($disponible): ?>
-                                    <a href="<?= url('/reserva/crear/' . $cancha['id']) . ($filtros['fecha'] ? '?fecha=' . urlencode($filtros['fecha']) . ($filtros['horario'] ? '&horario=' . urlencode($filtros['horario']) : '') : '') ?>" class="btn-reservar-v2">
+                                    <?php $reservaBase = isAdmin() ? '/reserva/crear/' : '/reserva/formulario/'; ?>
+                                    <a href="<?= url($reservaBase . $cancha['id']) . ($filtros['fecha'] ? '?fecha=' . urlencode($filtros['fecha']) . ($filtros['horario'] ? '&horario=' . urlencode($filtros['horario']) : '') : '') ?>" class="btn-reservar-v2">
                                         Reservar <?= htmlspecialchars($cancha['nombre']) ?>
                                     </a>
                                 <?php else: ?>
@@ -206,13 +189,17 @@ $tipoFormateado = $tipoLabels[$filtros['tipo']] ?? '';
                                 <?php endif; ?>
 
                                 <?php if (isAdmin()): ?>
-                                    <div class="d-flex gap-2 mt-1">
-                                        <a href="<?= url('/cancha/editar/' . $cancha['id']) ?>" class="btn btn-sm btn-outline-primary flex-grow-1" style="border-radius:7px;font-size:0.75rem;font-weight:600;">
-                                            <i class="bi bi-pencil me-1"></i>Editar
-                                        </a>
-                                        <a href="<?= url('/cancha/eliminar/' . $cancha['id']) ?>" class="btn btn-sm btn-outline-danger flex-grow-1 btn-confirmar-eliminar" style="border-radius:7px;font-size:0.75rem;font-weight:600;" data-confirm="Eliminar '<?= htmlspecialchars($cancha['nombre']) ?>'?">
-                                            <i class="bi bi-trash me-1"></i>Eliminar
-                                        </a>
+                                    <div class="row g-2 mt-1">
+                                        <div class="col-md-6 d-flex gap-2 mt-1">
+                                            <a href="<?= url('/cancha/editar/' . $cancha['id']) ?>" class="btn btn-sm btn-outline-primary flex-grow-1" style="border-radius:7px;font-size:0.75rem;font-weight:600;">
+                                                <i class="bi bi-pencil me-1"></i>Editar
+                                            </a>
+                                        </div>
+                                        <div class="col-md-6 d-flex gap-2 mt-1">
+                                            <a href="<?= url('/cancha/eliminar/' . $cancha['id']) ?>" class="btn btn-sm btn-outline-danger w-100 btn-confirmar-eliminar" style="border-radius:7px;font-size:0.75rem;font-weight:600;" data-confirm="Eliminar '<?= htmlspecialchars($cancha['nombre']) ?>'?">
+                                                <i class="bi bi-trash me-1"></i>Eliminar
+                                            </a>
+                                        </div>
                                     </div>
                                 <?php endif; ?>
                             </div>

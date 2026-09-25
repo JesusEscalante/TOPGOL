@@ -64,7 +64,7 @@ for ($h = $horaApertura; $h < $horaCierre; $h++) {
                 <div class="hero-right-panel ms-auto" style="max-width:260px;">
                     <div class="slogan-top">BUEN<br>FUTBOL</div>
                     <div class="slogan-bottom">MEJORES<br>HISTORIAS</div>
-                    <span class="hero-ball">&#9917;</span>
+                    <span class="hero-ball"><img src="assets/img/pelota.png" alt="Ball" class="img-fluid" width="115" height="115"></span>
                     <div class="hero-brand-tag">TOP GOL</div>
                     <div class="hero-brand-sub">Mas que futbol</div>
                 </div>
@@ -120,6 +120,32 @@ for ($h = $horaApertura; $h < $horaCierre; $h++) {
         </form>
     </div>
 </div>
+<style>
+/* Options minimalistas */
+.search-card .s-field-val option {
+    padding: 8px 12px;
+    font-size: .8rem;
+    font-weight: 400;
+    color: #334155;
+    background: #fff;
+    border-bottom: 1px solid #f8fafc;
+}
+.search-card .s-field-val option:hover,
+.search-card .s-field-val option:focus {
+    background: #f8fafc;
+    color: #0f172a;
+}
+.search-card .s-field-val option:checked {
+    background: #f1f5f9;
+    color: #0f172a;
+    font-weight: 600;
+}
+.search-card .s-field-val option:first-child {
+    color: #94a3b8;
+    font-weight: 400;
+    border-bottom: 1px solid #e2e8f0;
+}
+</style>
 
 <!-- ===== CANCHAS DISPONIBLES ===== -->
 <div class="container" style="margin-top: <?= (isAdmin() && isset($estadisticas)) ? '40px' : '48px' ?>; margin-bottom: 60px;">
@@ -223,7 +249,8 @@ for ($h = $horaApertura; $h < $horaCierre; $h++) {
 
                             <!-- Boton CTA -->
                             <?php if ($disponible): ?>
-                                <a href="<?= url('/reserva/crear/' . $cancha['id']) ?>" class="btn-reservar-v2">
+                                <?php $reservaBaseHome = isAdmin() ? '/reserva/crear/' : '/reserva/formulario/'; ?>
+                                <a href="<?= url($reservaBaseHome . $cancha['id']) ?>" class="btn-reservar-v2">
                                     Reservar cancha <?= $numero ?>
                                 </a>
                             <?php else: ?>

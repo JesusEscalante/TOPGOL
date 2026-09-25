@@ -61,12 +61,15 @@ CREATE TABLE `reservas` (
   `fecha` DATE NOT NULL,
   `hora_inicio` TIME NOT NULL,
   `hora_fin` TIME NOT NULL,
-  `duracion_horas` INT NOT NULL DEFAULT 1,
+  `duracion_horas` DECIMAL(4,2) NOT NULL DEFAULT 1.00,
   `total_pago` DECIMAL(10,2) NOT NULL,
   `estado` ENUM('pendiente', 'confirmada', 'cancelada', 'finalizada') NOT NULL DEFAULT 'pendiente',
   `observaciones` TEXT DEFAULT NULL,
-  `metodo_pago` ENUM('yape', 'transferencia_bcp') DEFAULT NULL,
+  `metodo_pago` ENUM('yape', 'transferencia_bcp', 'efectivo') DEFAULT NULL,
   `adelanto_monto` DECIMAL(10,2) NOT NULL DEFAULT 20.00,
+  `cliente_nombre` VARCHAR(120) DEFAULT NULL,
+  `contacto_telefono` VARCHAR(20) DEFAULT NULL,
+  `evento_grupo` VARCHAR(32) DEFAULT NULL,
   `pago_estado` ENUM('pendiente', 'en_revision', 'verificado', 'rechazado') NOT NULL DEFAULT 'pendiente',
   `comprobante_ruta` VARCHAR(500) DEFAULT NULL,
   `comprobante_nombre` VARCHAR(255) DEFAULT NULL,
@@ -107,6 +110,24 @@ CREATE TABLE `productos` (
   KEY `idx_producto_estado` (`estado`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- --------------------------------------------------------------------
+-- 5. TABLA: notificaciones (campanita tiempo real)
+-- --------------------------------------------------------------------
+CREATE TABLE `notificaciones` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `usuario_id` INT NOT NULL,
+  `tipo` VARCHAR(30) NOT NULL,
+  `titulo` VARCHAR(150) NOT NULL,
+  `mensaje` VARCHAR(255) NOT NULL,
+  `link` VARCHAR(255) DEFAULT NULL,
+  `leida` TINYINT(1) NOT NULL DEFAULT 0,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_notif_usuario` (`usuario_id`),
+  KEY `idx_notif_leida` (`leida`),
+  CONSTRAINT `fk_notif_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ====================================================================
 -- DATOS DE DEMOSTRACIÓN (SEEDS)
 -- ====================================================================
@@ -127,12 +148,12 @@ INSERT INTO `canchas` (`id`, `nombre`, `descripcion`, `precio_hora`, `capacidad`
 (5, 'Cancha 5 - Maracaná', 'Cancha de fútbol 5 rápida al aire libre con iluminación panorámica y redes de protección perimétricas de máxima seguridad.', 55.00, 10, 'futbol_5', 1, 0, 'disponible', NOW(), NOW());
 
 -- Inserción de 5 Reservas de Prueba
-INSERT INTO `reservas` (`id`, `usuario_id`, `cancha_id`, `fecha`, `hora_inicio`, `hora_fin`, `duracion_horas`, `total_pago`, `estado`, `observaciones`, `metodo_pago`, `adelanto_monto`, `pago_estado`, `comprobante_ruta`, `comprobante_nombre`, `comprobante_tipo`, `comprobante_size`, `comprobante_subido_at`, `created_at`, `updated_at`) VALUES
-(1, 2, 1, CURDATE(), '18:00:00', '19:00:00', 1, 60.00, 'confirmada', 'Partido con amigos de la oficina, solicitar 10 chalecos.', 'yape', 20.00, 'verificado', 'uploads/comprobantes/demo-4587.jpg', 'yape-4587.jpg', 'image/jpeg', 182400, NOW(), NOW(), NOW()),
-(2, 2, 2, DATE_ADD(CURDATE(), INTERVAL 1 DAY), '20:00:00', '22:00:00', 2, 180.00, 'pendiente', 'Semifinal del torneo de fin de semana.', 'yape', 20.00, 'en_revision', 'uploads/comprobantes/demo-4586.jpg', 'yape-4586.jpg', 'image/jpeg', 195300, NOW(), NOW(), NOW()),
-(3, 2, 4, DATE_ADD(CURDATE(), INTERVAL 2 DAY), '19:00:00', '20:00:00', 1, 110.00, 'confirmada', 'Llevar balón número 5 oficial.', 'transferencia_bcp', 20.00, 'verificado', 'uploads/comprobantes/demo-4585.pdf', 'bcp-4585.pdf', 'application/pdf', 210800, NOW(), NOW(), NOW()),
-(4, 2, 3, DATE_ADD(CURDATE(), INTERVAL 3 DAY), '16:00:00', '18:00:00', 2, 320.00, 'pendiente', 'Partido amistoso de fútbol 11.', NULL, 20.00, 'pendiente', NULL, NULL, NULL, NULL, NULL, NOW(), NOW()),
-(5, 2, 5, DATE_SUB(CURDATE(), INTERVAL 1 DAY), '17:00:00', '18:00:00', 1, 55.00, 'finalizada', 'Partido jugado y cancelado en caja satisfactoriamente.', 'yape', 20.00, 'verificado', 'uploads/comprobantes/demo-4584.jpg', 'yape-4584.jpg', 'image/jpeg', 176900, NOW(), NOW(), NOW());
+INSERT INTO `reservas` (`id`, `usuario_id`, `cancha_id`, `fecha`, `hora_inicio`, `hora_fin`, `duracion_horas`, `total_pago`, `estado`, `observaciones`, `metodo_pago`, `adelanto_monto`, `cliente_nombre`, `contacto_telefono`, `pago_estado`, `comprobante_ruta`, `comprobante_nombre`, `comprobante_tipo`, `comprobante_size`, `comprobante_subido_at`, `created_at`, `updated_at`) VALUES
+(1, 2, 1, CURDATE(), '18:00:00', '19:00:00', 1, 60.00, 'confirmada', 'Partido con amigos de la oficina, solicitar 10 chalecos.', 'yape', 20.00, 'Juan Pérez (Cliente)', '+51 912345678', 'verificado', 'uploads/comprobantes/demo-4587.jpg', 'yape-4587.jpg', 'image/jpeg', 182400, NOW(), NOW(), NOW()),
+(2, 2, 2, DATE_ADD(CURDATE(), INTERVAL 1 DAY), '20:00:00', '22:00:00', 2, 180.00, 'pendiente', 'Semifinal del torneo de fin de semana.', 'yape', 20.00, 'Juan Pérez (Cliente)', '+51 912345678', 'en_revision', 'uploads/comprobantes/demo-4586.jpg', 'yape-4586.jpg', 'image/jpeg', 195300, NOW(), NOW(), NOW()),
+(3, 2, 4, DATE_ADD(CURDATE(), INTERVAL 2 DAY), '19:00:00', '20:00:00', 1, 110.00, 'confirmada', 'Llevar balón número 5 oficial.', 'transferencia_bcp', 20.00, 'Juan Pérez (Cliente)', '+51 912345678', 'verificado', 'uploads/comprobantes/demo-4585.pdf', 'bcp-4585.pdf', 'application/pdf', 210800, NOW(), NOW(), NOW()),
+(4, 2, 3, DATE_ADD(CURDATE(), INTERVAL 3 DAY), '16:00:00', '18:00:00', 2, 320.00, 'pendiente', 'Partido amistoso de fútbol 11.', NULL, 20.00, NULL, NULL, 'pendiente', NULL, NULL, NULL, NULL, NULL, NOW(), NOW()),
+(5, 2, 5, DATE_SUB(CURDATE(), INTERVAL 1 DAY), '17:00:00', '18:00:00', 1, 55.00, 'finalizada', 'Partido jugado y cancelado en caja satisfactoriamente.', 'yape', 20.00, 'Juan Pérez (Cliente)', '+51 912345678', 'verificado', 'uploads/comprobantes/demo-4584.jpg', 'yape-4584.jpg', 'image/jpeg', 176900, NOW(), NOW(), NOW());
 
 -- Inserción de Productos de Prueba (inventario)
 INSERT INTO `productos` (`id`, `nombre`, `descripcion`, `categoria`, `precio`, `stock`, `stock_minimo`, `unidad`, `estado`, `created_at`, `updated_at`) VALUES

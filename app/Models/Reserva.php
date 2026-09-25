@@ -87,7 +87,7 @@ class Reserva extends Model {
      */
     public function crear(array $datos): int {
         $metodoPago = $datos['metodo_pago'] ?? null;
-        if (!in_array($metodoPago, ['yape', 'transferencia_bcp'], true)) {
+        if (!in_array($metodoPago, ['yape', 'transferencia_bcp', 'efectivo'], true)) {
             $metodoPago = null;
         }
 
@@ -98,10 +98,10 @@ class Reserva extends Model {
 
         $sql = "INSERT INTO {$this->tabla}
                 (usuario_id, cancha_id, fecha, hora_inicio, hora_fin, duracion_horas, total_pago, estado, observaciones,
-                 metodo_pago, adelanto_monto, pago_estado,
+                 metodo_pago, adelanto_monto, cliente_nombre, contacto_telefono, evento_grupo, pago_estado,
                  comprobante_ruta, comprobante_nombre, comprobante_tipo, comprobante_size, comprobante_subido_at,
                  created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
 
         $this->query($sql, [
             (int)$datos['usuario_id'],
@@ -109,12 +109,15 @@ class Reserva extends Model {
             (string)$datos['fecha'],
             (string)$datos['hora_inicio'],
             (string)$datos['hora_fin'],
-            (int)$datos['duracion_horas'],
+            (float)$datos['duracion_horas'],
             (float)$datos['total_pago'],
             (string)($datos['estado'] ?? 'pendiente'),
             trim((string)($datos['observaciones'] ?? '')),
             $metodoPago,
             (float)($datos['adelanto_monto'] ?? 20.00),
+            isset($datos['cliente_nombre']) && trim((string)$datos['cliente_nombre']) !== '' ? trim((string)$datos['cliente_nombre']) : null,
+            isset($datos['contacto_telefono']) && trim((string)$datos['contacto_telefono']) !== '' ? trim((string)$datos['contacto_telefono']) : null,
+            isset($datos['evento_grupo']) && trim((string)$datos['evento_grupo']) !== '' ? trim((string)$datos['evento_grupo']) : null,
             $pagoEstado,
             isset($datos['comprobante_ruta']) ? (string)$datos['comprobante_ruta'] : null,
             isset($datos['comprobante_nombre']) ? (string)$datos['comprobante_nombre'] : null,

@@ -60,9 +60,12 @@ $router->get('/cancha/editar/{id}', 'CanchaController@edit', ['admin']);
 $router->post('/cancha/actualizar/{id}', 'CanchaController@update', ['admin']);
 $router->get('/cancha/eliminar/{id}', 'CanchaController@delete', ['admin']);
 $router->post('/cancha/eliminar/{id}', 'CanchaController@delete', ['admin']);
+$router->post('/cancha/estado/{id}', 'CanchaController@toggleEstado', ['admin']);
 
-// Sistema y CRUD de Reservas
+ // Sistema y CRUD de Reservas
 $router->get('/reservas', 'ReservaController@index', ['admin']);
+$router->get('/reserva/formulario', 'ReservaController@formulario', ['auth']);
+$router->get('/reserva/formulario/{id_cancha}', 'ReservaController@formulario', ['auth']);
 $router->get('/reserva/crear', 'ReservaController@create', ['auth']);
 $router->get('/reserva/crear/{id_cancha}', 'ReservaController@create', ['auth']);
 $router->post('/reserva/guardar', 'ReservaController@store', ['auth']);
@@ -84,12 +87,28 @@ $router->get('/admin/productos/editar/{id}', 'ProductoController@edit', ['admin'
 $router->post('/admin/productos/actualizar/{id}', 'ProductoController@update', ['admin']);
 $router->get('/admin/productos/eliminar/{id}', 'ProductoController@delete', ['admin']);
 
+// Notificaciones tiempo real (SSE - push ligero, alternativa a WebSockets)
+$router->get('/api/notificaciones', 'NotificacionController@listar', ['admin']);
+$router->get('/api/notificaciones/stream', 'NotificacionController@stream', ['admin']);
+$router->post('/api/notificaciones/{id}/leer', 'NotificacionController@leer', ['admin']);
+$router->post('/api/notificaciones/leer-todas', 'NotificacionController@leerTodas', ['admin']);
+
 // API de Disponibilidad (AJAX)
 $router->get('/api/cancha/disponibilidad', 'ReservaController@checkAvailability');
 
 // Panel Administrativo y Usuarios
 $router->get('/admin/dashboard', 'UsuarioController@dashboard', ['admin']);
 $router->get('/admin/usuarios', 'UsuarioController@index', ['admin']);
+
+// Eventos - página informativa (pública) y reservas de eventos
+$router->get('/eventos', 'ReservaController@eventosInfo');
+$router->get('/evento', 'ReservaController@eventoCreate', ['auth']);
+$router->get('/evento/crear', 'ReservaController@eventoCreate', ['auth']);
+$router->post('/evento/guardar', 'ReservaController@eventoStore', ['auth']);
+
+// Contacto (público)
+$router->get('/contacto', 'ContactoController@index');
+$router->post('/contacto/enviar', 'ContactoController@enviar');
 
 // Perfil de usuario (admin y clientes)
 $router->get('/perfil', 'UsuarioController@perfil', ['auth']);

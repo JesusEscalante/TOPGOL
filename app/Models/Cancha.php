@@ -154,6 +154,17 @@ class Cancha extends Model {
     }
 
     /**
+     * Cambia solo el estado de una cancha (disponible / mantenimiento)
+     */
+    public function cambiarEstado(int $id, string $estado): bool {
+        if (!in_array($estado, ['disponible', 'mantenimiento'], true)) {
+            return false;
+        }
+        $sql = "UPDATE {$this->tabla} SET estado = ?, updated_at = NOW() WHERE id = ?";
+        return $this->execute($sql, [$estado, $id]);
+    }
+
+    /**
      * Retorna el número total de canchas
      */
     public function contarCanchas(): int {

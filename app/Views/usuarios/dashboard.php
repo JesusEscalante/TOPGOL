@@ -49,15 +49,72 @@ $productosDemo = [
                     <h1 class="adm-h1">¡Hola, <?= htmlspecialchars($nombreAdmin) ?>!</h1>
                     <p class="adm-sub">Aquí tienes un resumen de la operación de Top Gol en Tacna.</p>
                 </div>
-                <span class="adm-date"><i class="bi bi-calendar3"></i> <?= htmlspecialchars($fechaLarga) ?> <i class="bi bi-chevron-down"></i></span>
+                <div class="adm-date" id="admDateWrap" style="cursor:pointer;">
+                    <span class="cal-ico"><i class="bi bi-calendar3"></i></span>
+                    <button type="button" class="adm-date-btn" id="admDateBtn" aria-haspopup="listbox" aria-expanded="false">
+                        <span id="admDateLabel"><?= htmlspecialchars($fechaLarga) ?></span>
+                        <i class="bi bi-chevron-down chev"></i>
+                    </button>
+                    <div class="adm-date-dropdown d-none" id="admDateDropdown" role="listbox">
+                        <?php
+                        $d = $lunes;
+                        for($i=0; $i<7; $i++):
+                            $ts = strtotime($d);
+                            $lbl = $diasC[(int)date('w', $ts)] . ', ' . date('d', $ts) . ' de ' . $mesesL[(int)date('n', $ts)];
+                            $isActive = $d === $hoy;
+                            $isToday = $d === $hoyReal;
+                        ?>
+                            <div class="adm-opt <?= $isActive ? 'active' : '' ?> <?= $isToday && !$isActive ? 'today' : '' ?>" data-value="<?= $d ?>" role="option" aria-selected="<?= $isActive ? 'true' : 'false' ?>">
+                                <span><span style="font-weight:700;"><?= $diasC[(int)date('w', $ts)] ?></span> <span class="mut"><?= date('d', $ts) ?> <?= $mesesL[(int)date('n', $ts)] ?></span> <?= $isToday ? '<span class="badge ms-2" style="font-size:.62rem; background:#eef7f0; color:#1a7a3a; border:1px solid #bbf7d0; padding:2px 6px; border-radius:20px;">Hoy</span>' : '' ?></span>
+                                <?php if($isActive): ?><i class="bi bi-check-lg check"></i><?php endif; ?>
+                            </div>
+                        <?php $d = date('Y-m-d', strtotime($d . ' +1 day')); endfor; ?>
+                    </div>
+                </div>
+                <script>
+                (function(){
+                    var wrap=document.getElementById('admDateWrap');
+                    var btn=document.getElementById('admDateBtn');
+                    var dd=document.getElementById('admDateDropdown');
+                    if(!wrap || !btn || !dd) return;
+                    function toggle(open){
+                        var willOpen = typeof open === 'boolean' ? open : dd.classList.contains('d-none');
+                        dd.classList.toggle('d-none', !willOpen);
+                        wrap.classList.toggle('open', willOpen);
+                        btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+                    }
+                    btn.addEventListener('click', function(e){ e.stopPropagation(); toggle(); });
+                    wrap.addEventListener('click', function(e){
+                        if(e.target.closest('#admDateBtn')) return;
+                        // si clic en el pill fuera del botón, también abre
+                        if(e.target.closest('.adm-date') && !dd.contains(e.target)) toggle();
+                    });
+                    dd.querySelectorAll('.adm-opt').forEach(function(opt){
+                        opt.addEventListener('click', function(){
+                            var v=this.getAttribute('data-value');
+                            if(!v) return;
+                            var url=new URL(window.location.href);
+                            url.searchParams.set('fecha', v);
+                            window.location.href=url.toString();
+                        });
+                    });
+                    document.addEventListener('click', function(e){
+                        if(!wrap.contains(e.target)) toggle(false);
+                    });
+                    document.addEventListener('keydown', function(e){
+                        if(e.key === 'Escape') toggle(false);
+                    });
+                })();
+                </script>
             </div>
 
+            <?php $esHoyReal = ($hoy === $hoyReal); $lblHoy = $esHoyReal ? 'de hoy' : 'del ' . $diasC[(int)date('w', $tsHoy)] . ' ' . date('d', $tsHoy); ?>
             <!-- KPIs -->
             <div class="row g-3 mb-4">
                 <div class="col-md-6 col-xl-3">
                     <div class="kpi">
                         <span class="kpi-ico g"><i class="bi bi-calendar-check"></i></span>
-                        <div><small class="lbl">Reservas de hoy</small><div class="val"><?= $reservasHoy ?></div></div>
+                        <div><small class="lbl">Reservas <?= $lblHoy ?></small><div class="val"><?= $reservasHoy ?></div></div>
                         <div class="foot up"><?= $fmtPct($pctReservas) ?><br><span style="color:#7c8aa0;font-weight:400;">vs. ayer</span></div>
                     </div>
                 </div>
@@ -71,7 +128,7 @@ $productosDemo = [
                 <div class="col-md-6 col-xl-3">
                     <div class="kpi">
                         <span class="kpi-ico g"><i class="bi bi-stack"></i></span>
-                        <div><small class="lbl">Ingresos del día</small><div class="val">S/ <?= $fmtNum($ingresosHoy) ?></div></div>
+                        <div><small class="lbl">Ingresos <?= $lblHoy ?></small><div class="val">S/ <?= $fmtNum($ingresosHoy) ?></div></div>
                         <div class="foot up"><?= $fmtPct($pctIngresos) ?><br><span style="color:#7c8aa0;font-weight:400;">vs. ayer</span></div>
                     </div>
                 </div>
@@ -86,10 +143,10 @@ $productosDemo = [
 
             <div class="row g-3 mb-4">
                 <!-- Ocupación -->
-                <div class="col-6">
+                <div class="col-md-6">
                     <div class="panel">
-                        <h3>Ocupación de canchas - Hoy</h3>
-                        <div class="psub">Vista rápida de la disponibilidad por horario</div>
+                        <h3>Ocupación de canchas - <?= $esHoyReal ? 'Hoy' : $diasC[(int)date('w', $tsHoy)] . ' ' . date('d', $tsHoy) ?></h3>
+                        <div class="psub">Vista rápida de la disponibilidad por horario <?= $esHoyReal ? '' : '· ' . $fechaLarga ?></div>
                         <div class="legend">
                             <span><i class="dot" style="background:#22c55e;"></i>Reservada</span>
                             <span><i class="dot" style="background:#fff;border:2px solid #cbd5e1;"></i>Disponible</span>
@@ -106,17 +163,25 @@ $productosDemo = [
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach ($horas as $slot): ?>
+                                <?php for($h=7;$h<=23;$h++): $hStr=sprintf('%02d',$h); ?>
                                     <tr>
-                                        <th><?= $slot ?></th>
+                                        <th style="font-size:.68rem;"><?= $hStr ?>:00</th>
                                         <?php foreach ($ocupCanchas as $c): ?>
-                                            <?php $st = $ocupacion[(int)$c['id']][$slot] ?? 'libre'; ?>
-                                            <td><span class="cell <?= $st === 'ocup' ? 'ocup' : ($st === 'mant' ? 'mant' : '') ?>" title="<?= $slot ?> - <?= htmlspecialchars($c['nombre']) ?>"></span></td>
+                                            <td>
+                                                <span style="display:flex; gap:3px;">
+                                                    <?php foreach(['00','30'] as $mm): $slot=$hStr.':'.$mm; $st=$ocupacion[(int)$c['id']][$slot] ?? 'libre'; ?>
+                                                        <span class="cell <?= $st==='ocup'?'ocup':($st==='mant'?'mant':'') ?>" style="flex:1; height:12px;" title="<?= $slot ?> - <?= htmlspecialchars($c['nombre']) ?> (<?= $st ?>)"></span>
+                                                    <?php endforeach; ?>
+                                                </span>
+                                            </td>
                                         <?php endforeach; ?>
                                     </tr>
-                                <?php endforeach; ?>
+                                <?php endfor; ?>
                             </tbody>
                         </table>
+                        </div>
+                        <div style="display:flex; gap:12px; font-size:.65rem; color:#7c8aa0; margin-top:8px;">
+                            <span>◼ 00-30</span><span>◼ 30-00</span>
                         </div>
                         <a href="<?= url('/admin/calendario') ?>" class="btn-cal"><i class="bi bi-calendar3"></i> Ver calendario completo</a>
                     </div>

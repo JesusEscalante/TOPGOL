@@ -62,9 +62,17 @@ $nav = [
     .adm-slogan .u { display: block; width: 64px; height: 4px; border-radius: 4px; background: #22c55e; margin-top: 8px; transform: skewX(-18deg); }
     .adm-ver { font-size: .7rem; color: #8ea3b8; margin-top: 12px; line-height: 1.55; }
     .adm-ver strong { color: #fff; font-size: .75rem; }
+    .adm-toast { position: fixed; top: 18px; right: 18px; z-index: 1080; min-width: 320px; }
     .adm-top { background: #fff; display: flex; align-items: center; justify-content: flex-end; gap: 14px; padding: 10px 18px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.07); margin-bottom: 16px; }
-    .adm-bell { position: relative; font-size: 1.3rem; color: #101c33; }
-    .adm-bell::after { content: ''; position: absolute; top: 2px; right: 2px; width: 9px; height: 9px; border-radius: 50%; background: #dc2626; border: 2px solid #fff; }
+    .adm-bell { position: relative; font-size: 1.3rem; color: #101c33; border: none; background: none; cursor: pointer; padding: 4px 8px; }
+    .adm-bell-dot { position: absolute; top: 0; right: 2px; min-width: 18px; height: 18px; border-radius: 10px; background: #dc2626; color: #fff; font-size: .62rem; font-weight: 800; display: flex; align-items: center; justify-content: center; padding: 0 5px; border: 2px solid #fff; }
+    .adm-notif-dd { width: 360px; max-height: 420px; overflow-y: auto; border-radius: 12px; padding: 0; }
+    .adm-notif-item { display: flex; gap: 10px; padding: 12px 14px; border-bottom: 1px solid #eef2f7; text-decoration: none; color: #101c33; }
+    .adm-notif-item:hover { background: #f8fafc; }
+    .adm-notif-item.unread { background: #eef7f0; }
+    .adm-notif-ico { width: 32px; height: 32px; border-radius: 8px; background: #1a7a3a; color: #fff; display: flex; align-items: center; justify-content: center; font-size: .9rem; flex-shrink: 0; }
+    .adm-notif-ico.evt { background: #2563eb; }
+    .adm-toast { position: fixed; top: 18px; right: 18px; z-index: 1080; min-width: 300px; }
     .adm-user { display: flex; align-items: center; gap: 10px; }
     .adm-avatar { width: 42px; height: 42px; border-radius: 50%; background: #1a7a3a; color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
     .adm-user strong { display: block; font-size: .86rem; color: #101c33; }
@@ -72,7 +80,22 @@ $nav = [
     .adm-main { flex: 1; min-width: 0; background: #f4f7fb; padding: 22px 26px 30px; color: #101c33; }
     .adm-h1 { font-size: 1.8rem; font-weight: 800; margin: 0; }
     .adm-sub { color: #7c8aa0; margin: 2px 0 0; font-size: .9rem; }
-    .adm-date { display: inline-flex; align-items: center; gap: 9px; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 9px 14px; font-size: .82rem; font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+    .adm-date { display: inline-flex; align-items: center; gap: 10px; background: #fff; border: 1px solid #e8eef4; border-radius: 12px; padding: 6px 6px 6px 10px; font-size: .82rem; font-weight: 600; box-shadow: 0 1px 4px rgba(16,28,51,.06); transition: all .15s; position: relative; }
+    .adm-date:hover { border-color: #cbd5e1; box-shadow: 0 4px 12px rgba(16,28,51,.08); }
+    .adm-date.open { border-color: #1a7a3a; box-shadow: 0 4px 16px rgba(26,122,58,.12); }
+    .adm-date .cal-ico { width: 34px; height: 34px; border-radius: 8px; background: #eef7f0; color: #1a7a3a; display: flex; align-items: center; justify-content: center; font-size: 1.05rem; flex-shrink: 0; }
+    .adm-date-btn { display: inline-flex; align-items: center; gap: 8px; border: none; background: transparent; font-weight: 700; font-size: .85rem; color: #101c33; cursor: pointer; padding: 6px 4px; }
+    .adm-date-btn .chev { color: #94a3b8; font-size: .7rem; transition: transform .15s; }
+    .adm-date.open .chev { transform: rotate(180deg); }
+    .adm-date-dropdown { position: absolute; top: calc(100% + 8px); right: 0; min-width: 240px; background: #fff; border: 1px solid #e8eef4; border-radius: 12px; box-shadow: 0 12px 28px rgba(16,28,51,.14); padding: 6px; z-index: 1050; }
+    .adm-opt { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 8px; cursor: pointer; font-size: .82rem; transition: all .12s; }
+    .adm-opt:hover { background: #f1f5f9; }
+    .adm-opt.active { background: #1a7a3a; color: #fff; }
+    .adm-opt.active .mut { color: rgba(255,255,255,.75) !important; }
+    .adm-opt.today:not(.active) { background: #eef7f0; border: 1px solid #bbf7d0; }
+    .adm-opt .mut { color: #7c8aa0; font-size: .72rem; }
+    .adm-opt .check { color: #1a7a3a; font-size: .9rem; }
+    .adm-opt.active .check { color: #fff; }
     .kpi { background: #fff; border-radius: 14px; padding: 18px; display: flex; align-items: center; gap: 13px; box-shadow: 0 1px 3px rgba(16,28,51,.07); height: 100%; }
     .kpi-ico { width: 52px; height: 52px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #fff; flex-shrink: 0; }
     .kpi-ico.g { background: #1a7a3a; } .kpi-ico.y { background: #f5b301; } .kpi-ico.b { background: #2563eb; }
@@ -159,7 +182,20 @@ $nav = [
     <div class="adm-main">
         <header class="adm-top">
             <button class="adm-burger" onclick="toggleAdmSide()" aria-label="Menú"><i class="bi bi-list"></i></button>
-            <a href="<?= url('/reservas') ?>" class="adm-bell" title="Notificaciones"><i class="bi bi-bell"></i></a>
+            <div class="dropdown">
+                <button class="adm-bell" id="admBellBtn" data-bs-toggle="dropdown" aria-expanded="false" title="Notificaciones">
+                    <i class="bi bi-bell"></i>
+                    <span class="adm-bell-dot d-none" id="admBellCount">0</span>
+                </button>
+                <div class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 adm-notif-dd" id="admNotifDropdown">
+                    <div class="d-flex align-items-center justify-content-between p-3 border-bottom">
+                        <strong style="font-size:.85rem;">Notificaciones</strong>
+                        <button class="btn btn-sm btn-link p-0" style="font-size:.72rem; text-decoration:none;" onclick="marcarTodasLeidas()">Marcar todas leídas</button>
+                    </div>
+                    <div id="admNotifList"><div class="p-4 text-center text-muted" style="font-size:.82rem;">Cargando...</div></div>
+                    <a href="<?= url('/admin/reservas') ?>" class="d-block text-center py-2 border-top" style="font-size:.78rem; font-weight:700; color:#1a7a3a; text-decoration:none;">Ver todas las reservas</a>
+                </div>
+            </div>
             <div class="dropdown">
                 <a href="#" class="adm-user text-decoration-none" data-bs-toggle="dropdown" aria-expanded="false">
                     <span class="adm-avatar"><?= htmlspecialchars($inicial) ?></span>
@@ -174,3 +210,112 @@ $nav = [
                 </ul>
             </div>
         </header>
+        <div id="admToastWrap" class="adm-toast"></div>
+        <script>
+        (function(){
+            var countEl=document.getElementById('admBellCount');
+            var listEl=document.getElementById('admNotifList');
+            var csrf='<?= htmlspecialchars(csrf_token()) ?>';
+            var apiList='<?= url('/api/notificaciones') ?>';
+            var apiStream='<?= url('/api/notificaciones/stream') ?>';
+            var apiLeerTodas='<?= url('/api/notificaciones/leer-todas') ?>';
+
+            function esc(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+            function renderCount(c){
+                if(!countEl) return;
+                if(c>0){ countEl.textContent=c>99?'99+':String(c); countEl.classList.remove('d-none'); }
+                else { countEl.classList.add('d-none'); }
+            }
+
+            function renderList(items){
+                if(!listEl) return;
+                if(!items || items.length===0){
+                    listEl.innerHTML='<div class="p-4 text-center text-muted" style="font-size:.82rem;">Sin notificaciones</div>';
+                    return;
+                }
+                var html='';
+                items.forEach(function(n){
+                    var ico = n.tipo==='evento' ? 'evt' : '';
+                    var unread = n.leida==0 ? ' unread' : '';
+                    var href = n.link ? n.link : '#';
+                    // Corrige links antiguos relativos sin base (/admin/* -> /topgol/admin/*)
+                    if(href.charAt(0)==='/' && href.indexOf('http')!==0){
+                        var basePath = new URL('<?= URL_BASE ?>').pathname.replace(/\/$/, '');
+                        if(basePath && href.indexOf(basePath)!==0) href = basePath + href;
+                    }
+                    html += '<a href="'+esc(href)+'" class="adm-notif-item'+unread+'" onclick="marcarLeida(event,'+n.id+')">'
+                        + '<span class="adm-notif-ico '+ico+'"><i class="bi '+(n.tipo==='evento'?'bi-calendar-event':'bi-bell-fill')+'"></i></span>'
+                        + '<span style="flex:1; min-width:0;"><strong style="font-size:.82rem; display:block;">'+esc(n.titulo)+'</strong><span style="font-size:.75rem; color:#5b6b82;">'+esc(n.mensaje)+'</span><small style="display:block; color:#94a3b8; font-size:.68rem;">'+esc(n.created_at)+'</small></span>'
+                        + '</a>';
+                });
+                listEl.innerHTML=html;
+            }
+
+            function fetchList(){
+                fetch(apiList, {credentials:'same-origin'})
+                    .then(function(r){ return r.json(); })
+                    .then(function(d){ renderCount(d.count); renderList(d.items); })
+                    .catch(function(){});
+            }
+
+            window.marcarLeida=function(e,id){
+                // deja navegar, marca en segundo plano
+                fetch('<?= url('/api/notificaciones/') ?>'+id+'/leer', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'csrf_token='+encodeURIComponent(csrf), credentials:'same-origin'});
+            };
+            window.marcarTodasLeidas=function(){
+                fetch(apiLeerTodas, {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'csrf_token='+encodeURIComponent(csrf), credentials:'same-origin'})
+                    .then(function(){ fetchList(); });
+            };
+
+            function showToast(n){
+                var wrap=document.getElementById('admToastWrap');
+                if(!wrap) return;
+                var el=document.createElement('div');
+                el.className='toast show align-items-center text-bg-success border-0 mb-2';
+                el.setAttribute('role','alert');
+                el.innerHTML='<div class="d-flex"><div class="toast-body" style="font-size:.82rem;"><strong>'+esc(n.titulo)+'</strong><br>'+esc(n.mensaje)+'</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>';
+                wrap.appendChild(el);
+                setTimeout(function(){ el.remove(); }, 5000);
+                try{ var a=new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA=='); a.play().catch(function(){}); }catch(e){}
+            }
+
+            // Tiempo real: SSE (push sin polling) - efecto WebSocket sin necesidad de daemon.
+            // Para WebSocket puro ws://localhost:8080 habilita extension=sockets y ejecuta: php websocket_server.php
+            var es = null;
+            var lastId = 0;
+            function connectSSE(){
+                try{
+                    var url = apiStream + (lastId ? '?last='+lastId : '');
+                    es = new EventSource(url);
+                    es.addEventListener('count', function(e){
+                        try{ var d=JSON.parse(e.data); renderCount(d.count); }catch(err){}
+                    });
+                    es.addEventListener('notificacion', function(e){
+                        try{
+                            var n=JSON.parse(e.data);
+                            lastId = Math.max(lastId, parseInt(n.id)||0);
+                            showToast(n);
+                            fetchList();
+                        }catch(err){}
+                    });
+                    es.onerror = function(){
+                        try{ es.close(); }catch(err){}
+                        setTimeout(connectSSE, 3000);
+                    };
+                }catch(e){
+                    setInterval(fetchList, 10000);
+                }
+            }
+            fetchList();
+            connectSSE();
+            // Intento opcional WebSocket nativo en paralelo (si corre websocket_server.php)
+            if('WebSocket' in window){
+                try{
+                    var ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.hostname+':8080');
+                    ws.onopen=function(){ if(es){ try{es.close();}catch(e){} } };
+                    ws.onmessage=function(ev){ try{ var d=JSON.parse(ev.data); if(d.type==='notificacion'){ showToast(d); fetchList(); }}catch(err){} };
+                }catch(e){}
+            }
+        })();
+        </script>

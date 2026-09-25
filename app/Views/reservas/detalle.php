@@ -65,9 +65,12 @@ $pago = match ($pagoEstado) {
     'rechazado'   => ['badge' => 'bad', 'txt' => 'Rechazado', 'sub' => 'Rechazado'],
     default       => ['badge' => 'warn', 'txt' => 'Pendiente', 'sub' => 'Pendiente'],
 };
-$adelantoSub = !empty($reserva['comprobante_subido_at'])
-    ? 'Pagado el ' . $fmtFechaHora((string)$reserva['comprobante_subido_at'])
-    : 'Se paga con Yape o BCP';
+$esEfectivo = $metodoPago === 'efectivo';
+$adelantoSub = $esEfectivo
+    ? 'Pago completo en efectivo' . (!empty($reserva['comprobante_subido_at']) ? ' el ' . $fmtFechaHora((string)$reserva['comprobante_subido_at']) : ' en sitio')
+    : (!empty($reserva['comprobante_subido_at'])
+        ? 'Pagado el ' . $fmtFechaHora((string)$reserva['comprobante_subido_at'])
+        : 'Se paga con Yape o BCP');
 
 $waTexto = urlencode("Hola Top Gol, tengo una consulta sobre mi reserva #{$id}");
 $waUrl = "https://wa.me/51987654321?text={$waTexto}";
@@ -148,7 +151,7 @@ $puedeCancelar = in_array($estado, ['pendiente', 'confirmada'], true) && ($reser
                         <div class="col-4">
                             <div class="det-box">
                                 <i class="bi bi-clock"></i>
-                                <span><small>Hora</small><strong><?= $horaIni ?> - <?= $horaFin ?></strong><small><?= $dur ?> hora<?= $dur > 1 ? 's' : '' ?></small></span>
+                                <span><small>Hora</small><strong><?= $horaIni ?> - <?= $horaFin ?></strong><small><?= $dur==0.5 ? '30 minutos' : ($dur==1 ? '1 hora' : $dur . ' horas') ?></small></span>
                             </div>
                         </div>
                         <div class="col-4">
@@ -184,7 +187,7 @@ $puedeCancelar = in_array($estado, ['pendiente', 'confirmada'], true) && ($reser
                                 <span class="dp-ico info"><i class="bi bi-wallet2"></i></span>
                                 <small>Monto total</small>
                                 <strong><?= formatPrice($total) ?></strong>
-                                <span class="dp-sub"><?= $dur ?> hora<?= $dur > 1 ? 's' : '' ?> de alquiler</span>
+                                <span class="dp-sub"><?= $dur==0.5 ? '30 minutos' : ($dur==1 ? '1 hora' : $dur . ' horas') ?> de alquiler</span>
                             </div>
                         </div>
                     </div>
@@ -207,12 +210,123 @@ $puedeCancelar = in_array($estado, ['pendiente', 'confirmada'], true) && ($reser
                         </div>
                     </div>
                     <?php if ($metodoPago): ?>
-                        <div class="det-metodo">Método de pago: <strong><?= $metodoPago === 'yape' ? 'Yape' : 'Transferencia BCP' ?></strong> · Estado del pago: <strong><?= $pago['txt'] ?></strong></div>
+                        <div class="det-metodo">Método de pago: <strong><?= $metodoPago === 'yape' ? 'Yape' : ($metodoPago === 'efectivo' ? 'Efectivo' : 'Transferencia BCP') ?></strong> · Estado del pago: <strong><?= $pago['txt'] ?></strong></div>
                     <?php endif; ?>
                 </div>
             </div>
         </div>
     </div>
+
+    <?php if (isAdmin()): ?>
+    <div class="det-card mt-3" style="border:none; background:linear-gradient(135deg, #f0fdf4 0%, #fff 60%);">
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <span style="width:32px; height:32px; border-radius:8px; background:#1a7a3a; color:#fff; display:inline-flex; align-items:center; justify-content:center;"><i class="bi bi-shield-check"></i></span>
+            <div>
+                <h3 class="det-h3 mb-0">Acciones de administrador</h3>
+                <small class="text-muted" style="font-size:.72rem;">Cambios se guardan al instante — sin recargar</small>
+            </div>
+            <span id="adminSaveHint" class="ms-auto small text-success fw-semibold d-none"><i class="bi bi-check-circle-fill me-1"></i>Guardado</span>
+        </div>
+
+        <div class="row g-3 mt-1">
+            <div class="col-md-6">
+                <form id="formEstadoAdmin" action="<?= url('/reserva/estado/' . $id) ?>" method="POST" class="adm-accion">
+                    <?= csrf_field() ?>
+                    <label class="form-label fw-semibold d-flex align-items-center gap-2" style="font-size:.75rem;"><i class="bi bi-flag" style="color:#1a7a3a;"></i> Estado de la reserva</label>
+                    <div class="input-group">
+                        <span class="input-group-text" style="background:#fff; font-size:.75rem;">#<?= $id ?></span>
+                        <select name="estado" class="form-select" style="font-weight:600;">
+                            <option value="pendiente" <?= $estado==='pendiente'?'selected':'' ?>>● Pendiente</option>
+                            <option value="confirmada" <?= $estado==='confirmada'?'selected':'' ?>>✓ Confirmada</option>
+                            <option value="cancelada" <?= $estado==='cancelada'?'selected':'' ?>>✕ Cancelada</option>
+                            <option value="finalizada" <?= $estado==='finalizada'?'selected':'' ?>>■ Finalizada</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="col-md-6">
+                <form id="formPagoAdmin" action="<?= url('/reserva/pago/' . $id) ?>" method="POST" class="adm-accion">
+                    <?= csrf_field() ?>
+                    <label class="form-label fw-semibold d-flex align-items-center gap-2" style="font-size:.75rem;"><i class="bi bi-credit-card" style="color:#1a7a3a;"></i> Estado del pago</label>
+                    <div class="input-group">
+                        <span class="input-group-text" style="background:#fff; font-size:.75rem;"><i class="bi bi-wallet2"></i></span>
+                        <select name="pago_estado" class="form-select" style="font-weight:600;">
+                            <option value="pendiente" <?= $pagoEstado==='pendiente'?'selected':'' ?>>Pendiente</option>
+                            <option value="en_revision" <?= $pagoEstado==='en_revision'?'selected':'' ?>>En revisión</option>
+                            <option value="verificado" <?= $pagoEstado==='verificado'?'selected':'' ?>>Verificado</option>
+                            <option value="rechazado" <?= $pagoEstado==='rechazado'?'selected':'' ?>>Rechazado</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="pill fin" style="font-size:.72rem;"><i class="bi bi-person me-1"></i><?= htmlspecialchars($reserva['cliente_nombre'] ?? $reserva['usuario_nombre']) ?></span>
+            <span class="pill fin" style="font-size:.72rem;"><i class="bi bi-telephone me-1"></i><?= htmlspecialchars($reserva['contacto_telefono'] ?? $reserva['usuario_telefono'] ?? '—') ?></span>
+            <span class="pill <?= $pagoEstado==='verificado'?'ok':($pagoEstado==='en_revision'?'warn':'fin') ?>" style="font-size:.72rem;"><i class="bi bi-wallet2 me-1"></i><?= htmlspecialchars($metodoPago ? ucfirst($metodoPago) : '—') ?> · <?= ucfirst($pagoEstado) ?></span>
+            <?php if($comprobanteRuta): ?><a href="<?= url('/' . ltrim($comprobanteRuta, '/')) ?>" target="_blank" class="pill ok" style="font-size:.72rem; text-decoration:none;"><i class="bi bi-paperclip me-1"></i>Ver comprobante</a><?php endif; ?>
+        </div>
+    </div>
+    <script>
+    (function(){
+        var hint=document.getElementById('adminSaveHint');
+        function showHint(msg){
+            if(!hint) return;
+            hint.textContent=msg||'Guardado';
+            hint.classList.remove('d-none');
+            clearTimeout(hint._t);
+            hint._t=setTimeout(function(){ hint.classList.add('d-none'); }, 1800);
+        }
+        function bindAjax(formId, onOk){
+            var form=document.getElementById(formId);
+            if(!form) return;
+            var sel=form.querySelector('select');
+            if(!sel) return;
+            sel.addEventListener('change', function(){
+                var fd=new FormData(form);
+                fetch(form.action, {
+                    method:'POST',
+                    headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'},
+                    body: fd,
+                    credentials:'same-origin'
+                }).then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); }).then(function(res){
+                    if(res.ok && res.j.ok){
+                        showHint('✓ Guardado');
+                        if(onOk) onOk(res.j);
+                        // actualizar pills del header sin recargar
+                        if(res.j.estado){
+                            var banner=document.querySelector('.det-banner');
+                            if(banner){
+                                banner.className='det-banner ' + (res.j.estado==='confirmada'?'ok':res.j.estado==='pendiente'?'pend':res.j.estado==='cancelada'?'canc':'fin');
+                            }
+                        }
+                    } else {
+                        showHint('Error');
+                        alert(res.j.error||'No se pudo guardar');
+                    }
+                }).catch(function(){ showHint('Error'); alert('Error de red'); });
+            });
+        }
+        bindAjax('formEstadoAdmin', function(j){
+            // actualizar título del banner
+            var titles={pendiente:['¡Reserva pendiente!','Estamos verificando tu pago.'], confirmada:['¡Reserva confirmada!','Tu cancha ha sido reservada exitosamente.'], cancelada:['Reserva cancelada','Esta reserva fue cancelada.'], finalizada:['Reserva finalizada','Gracias por jugar en Top Gol.']};
+            var t=titles[j.estado];
+            var h2=document.querySelector('.det-banner h2');
+            var p=document.querySelector('.det-banner p');
+            if(h2 && t) h2.textContent=t[0];
+            if(p && t) p.textContent=t[1];
+        });
+        bindAjax('formPagoAdmin', function(j){
+            // actualizar badge de pago en la tarjeta
+            var badge=document.querySelector('.det-pay .dp-badge.warn, .det-pay .dp-badge.ok');
+            // recargar sutil: actualizar texto del método
+            var metodoEl=document.querySelector('.det-metodo strong');
+            // no es crítico, el select ya refleja el nuevo valor
+        });
+    })();
+    </script>
+    <?php endif; ?>
 
     <!-- Historial -->
     <div class="det-card mt-3">
@@ -223,10 +337,11 @@ $puedeCancelar = in_array($estado, ['pendiente', 'confirmada'], true) && ($reser
                 <div><strong>Reserva <?= $estado === 'cancelada' ? 'cancelada' : 'confirmada' ?></strong> <span class="dt-fecha"><?= $fmtFechaHora((string)$reserva['created_at']) ?></span>
                 <p>Tu reserva ha sido <?= $estado === 'cancelada' ? 'cancelada' : 'confirmada' ?>. Código: #<?= $id ?></p></div>
             </div>
-            <div class="dt-item <?= $comprobanteRuta ? 'done' : '' ?>">
+            <?php $pagoDone = $esEfectivo || $pagoEstado === 'verificado' || !empty($comprobanteRuta); $pagoFecha = $esEfectivo ? ($reserva['created_at'] ? $fmtFechaHora((string)$reserva['created_at']) : $fmtFechaHora((string)$reserva['comprobante_subido_at'])) : ($comprobanteRuta ? $fmtFechaHora((string)$reserva['comprobante_subido_at']) : 'Pendiente'); $metodoLblHist = $metodoPago === 'yape' ? 'Yape' : ($metodoPago === 'efectivo' ? 'Efectivo' : 'Transferencia BCP'); ?>
+            <div class="dt-item <?= $pagoDone ? 'done' : '' ?>">
                 <span class="dt-dot"></span>
-                <div><strong>Pago del adelanto</strong> <span class="dt-fecha"><?= $comprobanteRuta ? $fmtFechaHora((string)$reserva['comprobante_subido_at']) : 'Pendiente' ?></span>
-                <p><?= $comprobanteRuta ? 'Se ha registrado el pago de ' . formatPrice($adelanto) . ' (' . ($metodoPago === 'yape' ? 'Yape' : 'Transferencia BCP') . '). Estado: ' . $pago['txt'] . '.' : 'Aún no se ha registrado el pago de ' . formatPrice($adelanto) . '.' ?></p></div>
+                <div><strong><?= $esEfectivo ? 'Pago completo' : 'Pago del adelanto' ?></strong> <span class="dt-fecha"><?= $pagoDone ? $pagoFecha : 'Pendiente' ?></span>
+                <p><?= $pagoDone ? ($esEfectivo ? 'Pago completo de ' . formatPrice($adelanto) . ' en efectivo. Estado: ' . $pago['txt'] . '.' : 'Se ha registrado el pago de ' . formatPrice($adelanto) . ' (' . $metodoLblHist . '). Estado: ' . $pago['txt'] . '.') : 'Aún no se ha registrado el pago de ' . formatPrice($adelanto) . '.' ?></p></div>
             </div>
             <div class="dt-item done">
                 <span class="dt-dot"></span>

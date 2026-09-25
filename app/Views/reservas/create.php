@@ -14,13 +14,15 @@ $hoyStr = date('Y-m-d');
 $esHoy = ($fechaPre === $hoyStr);
 $horaMinHoy = max(7, (int)date('H') + 1);
 
-// Cancha inicial para el resumen
+ // Cancha inicial para el resumen
 $canchaIni = $canchaSeleccionada ?? ($canchas[0] ?? null);
 $precioHoraIni = (float)($canchaIni['precio_hora'] ?? 60);
 $duracionIni = 1;
 $totalIni = $precioHoraIni * $duracionIni;
-$adelantoIni = 20;
+$esAdminView = function_exists('isAdmin') && isAdmin();
+$adelantoIni = $esAdminView ? $totalIni : 20;
 $saldoIni = max(0, $totalIni - $adelantoIni);
+$metodoIni = $esAdminView ? 'efectivo' : 'yape';
 
 $tipoLabels = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11' => 'Fútbol 11'];
 $tipoIni = $tipoLabels[$canchaIni['tipo'] ?? ''] ?? 'Fútbol 5';
@@ -68,9 +70,34 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
                     <ul class="mb-0 mt-1" id="formAlertList"></ul>
                 </div>
 
-                <!-- Datos de la reserva (editables, compactos) -->
+                <?php if (!$esAdminView): ?>
+                <!-- Datos vienen del formulario previo (paso 1) - ocultos para cliente -->
+                <input type="hidden" name="cancha_id" id="cancha_id" value="<?= htmlspecialchars($_GET['cancha_id'] ?? $idSeleccionado) ?>">
+                <input type="hidden" name="fecha" id="fecha" value="<?= htmlspecialchars($_GET['fecha'] ?? $fechaPre) ?>">
+                <input type="hidden" name="hora_inicio" id="hora_inicio" value="<?= htmlspecialchars($_GET['horario'] ?? $horaPre) ?>">
+                <input type="hidden" name="duracion_horas" id="duracion_horas" value="<?= htmlspecialchars($_GET['duracion'] ?? $duracionIni) ?>">
+                <input type="hidden" name="contacto_telefono" id="contacto_telefono" value="<?= htmlspecialchars($_GET['celular'] ?? '') ?>">
+                <input type="hidden" name="observaciones" value="<?= htmlspecialchars($_GET['observaciones'] ?? '') ?>">
+                <input type="hidden" name="cliente_nombre" value="<?= htmlspecialchars($_GET['nombre_cliente'] ?? '') ?>">
+                <?php endif; ?>
+
+                <?php if ($esAdminView): ?>
+                <!-- Datos de la reserva (editables, compactos) - solo admin en una sola página -->
                 <div class="pago-card mb-3">
                     <div class="pago-card-title">Datos de tu reserva</div>
+                    <?php if ($esAdminView): ?>
+                    <div class="row g-2 mb-2">
+                        <div class="col-12">
+                            <label for="cliente_nombre" class="form-label fw-semibold small">Nombre del cliente <span class="text-danger">*</span></label>
+                            <div class="cs-wrap" style="position:relative;">
+                                <input type="text" class="form-control" id="cliente_nombre" name="cliente_nombre" placeholder="Ej: Juan Pérez" autocomplete="off" required>
+                                <div id="clienteDropdown" class="cs-dropdown d-none"></div>
+                            </div>
+                            <input type="hidden" id="cliente_id" name="cliente_id" value="0">
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                    
                     <div class="row g-2">
                         <div class="col-md-6">
                             <label for="cancha_id" class="form-label fw-semibold small">Cancha <span class="text-danger">*</span></label>
@@ -96,36 +123,89 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
                             <label for="hora_inicio" class="form-label fw-semibold small">Hora <span class="text-danger">*</span></label>
                             <select class="form-select" id="hora_inicio" name="hora_inicio" required>
                                 <option value="" disabled <?= $horaPre === '' ? 'selected' : '' ?>>--:--</option>
-                                <?php for ($h = 7; $h <= 23; $h++): ?>
-                                    <?php if ($esHoy && $h < $horaMinHoy) continue; ?>
-                                    <?php $horaStr = sprintf('%02d:00', $h); ?>
-                                    <option value="<?= $horaStr ?>" <?= $horaPre === $horaStr ? 'selected' : '' ?>><?= $horaStr ?></option>
-                                <?php endfor; ?>
+                                <?php
+                                for ($h = 7; $h <= 23; $h++):
+                                    foreach (['00','30'] as $mm):
+                                        if ($h == 23 && $mm == '30') {
+                                            // 23:30 es válido (termina 00:00 con 30m)
+                                        }
+                                        $horaStr = sprintf('%02d:%s', $h, $mm);
+                                        if ($esHoy) {
+                                            $tsSlot = strtotime($horaStr);
+                                            $tsMin = strtotime(sprintf('%02d:00', $horaMinHoy));
+                                            if ($tsSlot < $tsMin) continue;
+                                        }
+                                ?>
+                                    <option value="<?= $horaStr ?>" <?= $horaPre === $horaStr ? 'selected' : '' ?>><?= date('g:i A', strtotime($horaStr)) ?></option>
+                                <?php endforeach; endfor; ?>
                             </select>
                             <small class="text-muted <?= ($esHoy && $horaMinHoy > 23) ? '' : 'd-none' ?>" id="sinHorariosHoy">Por hoy ya no quedan horarios, elige otra fecha.</small>
                         </div>
                         <div class="col-6 col-md-3">
                             <label for="duracion_horas" class="form-label fw-semibold small">Duración <span class="text-danger">*</span></label>
                             <select class="form-select" id="duracion_horas" name="duracion_horas" required>
-                                <?php for ($d = 1; $d <= 4; $d++): ?>
-                                    <option value="<?= $d ?>" <?= $d === $duracionIni ? 'selected' : '' ?>><?= $d ?> hora<?= $d > 1 ? 's' : '' ?></option>
-                                <?php endfor; ?>
+                                <?php
+                                $durOpciones = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6];
+                                foreach ($durOpciones as $d):
+                                    $lbl = $d == 0.5 ? '30 minutos' : ($d == 1 ? '1 hora' : $d . ' horas');
+                                    if (fmod($d, 1) == 0.5) {
+                                        $h = (int)floor($d);
+                                        $lbl = $h . 'h 30m';
+                                        if ($d == 0.5) $lbl = '30 minutos';
+                                    }
+                                ?>
+                                    <option value="<?= $d ?>" <?= $d == $duracionIni ? 'selected' : '' ?>><?= $lbl ?></option>
+                                <?php endforeach; ?>
                             </select>
                         </div>
-                        <div class="col-md-9">
+                        <div class="col-md-6">
+                            <label for="contacto_telefono" class="form-label fw-semibold small">Número de contacto (WhatsApp) <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text" style="background:#f8fafc; font-weight:700; color:#334155; border-color:#e2e8f0;">+51</span>
+                                <input type="tel" class="form-control" id="contacto_telefono" name="contacto_telefono" placeholder="999 999 999" value="<?= $esAdminView ? '' : htmlspecialchars(preg_replace('/^\\+51\\s*/', '', $_SESSION['usuario_telefono'] ?? '')) ?>" required>
+                            </div>
+                            <div class="invalid-feedback">Ingresa tu número de celular (WhatsApp).</div>
+                        </div>
+                        <div class="col-md-12">
                             <label for="observaciones" class="form-label fw-semibold small">Observaciones (opcional)</label>
                             <input type="text" class="form-control" id="observaciones" name="observaciones" placeholder="Ej: Necesitamos chalecos...">
                         </div>
                     </div>
                 </div>
+                <?php endif; ?>
 
                 <!-- Sección 1 -->
-                <div class="pago-card mb-3">
+                <div class="pago-card mb-3" id="seccionPago">
+                    <?php if ($esAdminView): ?>
+                    <h2 class="pago-h2"><span class="pago-num">1.</span> Método de pago</h2>
+                    <p class="pago-text" id="pagoTextoAdmin">Reserva presencial con el administrador: se realiza el <strong>pago completo</strong> sin adelanto y sin comprobante.</p>
+                    <?php else: ?>
                     <h2 class="pago-h2"><span class="pago-num">1.</span> Realiza el pago del adelanto</h2>
                     <p class="pago-text">Elige un método de pago y realiza el adelanto de S/ 20. Luego sube tu comprobante.</p>
+                    <?php endif; ?>
 
-                    <input type="hidden" name="metodo_pago" id="metodo_pago" value="yape">
+                    <input type="hidden" name="metodo_pago" id="metodo_pago" value="<?= htmlspecialchars($metodoIni) ?>">
                     <div class="row g-2 mb-3" role="group" aria-label="Método de pago">
+                        <?php if ($esAdminView): ?>
+                        <div class="col-lg-4 col-md-4 col-sm-12">
+                            <button type="button" class="metodo-btn active" id="btnEfectivo" onclick="elegirMetodo('efectivo')">
+                                <span class="bcp-logo" style="background:#1a7a3a;">S/</span>
+                                <span>Efectivo</span>
+                            </button>
+                        </div>
+                        <div class="col-lg-4 col-md-4 col-sm-12">
+                            <button type="button" class="metodo-btn" id="btnYape" onclick="elegirMetodo('yape')">
+                                <span class="yape-logo">yape</span>
+                                <span>Yape</span>
+                            </button>
+                        </div>
+                        <div class="col-lg-4 col-md-4 col-sm-12">
+                            <button type="button" class="metodo-btn" id="btnBcp" onclick="elegirMetodo('bcp')">
+                                <span class="bcp-logo">›BCP›</span>
+                                <span>Transferencia</span>
+                            </button>
+                        </div>
+                        <?php else: ?>
                         <div class="col-lg-6 col-md-6 col-sm-12">
                             <button type="button" class="metodo-btn active" id="btnYape" onclick="elegirMetodo('yape')">
                                 <span class="yape-logo">yape</span>
@@ -135,13 +215,29 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
                         <div class="col-lg-6 col-md-6 col-sm-12">
                             <button type="button" class="metodo-btn" id="btnBcp" onclick="elegirMetodo('bcp')">
                                 <span class="bcp-logo">›BCP›</span>
-                                <span>Transferencia BCP</span>
+                                <span>Transferencia</span>
                             </button>
                         </div>
+                        <?php endif; ?>
                     </div>
 
+                    <?php if ($esAdminView): ?>
+                    <!-- Panel Efectivo (presencial) -->
+                    <div class="pago-panel" id="panelEfectivo">
+                        <div class="pago-importante" style="background:#eef7f0;">
+                            <div class="fw-bold mb-1"><span class="info-ico"><i class="bi bi-cash-stack"></i></span> Pago presencial en efectivo</div>
+                            <ul>
+                                <li>El administrador registra la reserva de forma <strong>presencial</strong>.</li>
+                                <li>Se realiza el <strong>pago completo</strong> (sin adelanto de S/ 20).</li>
+                                <li><strong>No requiere comprobante</strong> de pago.</li>
+                                <li>La reserva queda <strong>confirmada y verificada</strong> al guardar.</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
                     <!-- Panel Yape -->
-                    <div class="pago-panel" id="panelYape">
+                    <div class="pago-panel <?= $esAdminView ? 'd-none' : '' ?>" id="panelYape">
                         <div class="row g-3">
                             <div class="col-md-5 text-center">
                                 <div class="qr-title">Escanea el código QR con Yape</div>
@@ -201,9 +297,9 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
                 </div>
 
                 <!-- Sección 2 -->
-                <div class="pago-card mb-3">
-                    <h2 class="pago-h2"><span class="pago-num">2.</span> Sube tu comprobante de pago <span class="text-danger">*</span></h2>
-                    <p class="pago-text">Adjunta una imagen o captura de tu comprobante de pago <strong>(obligatorio)</strong> (formato JPG, PNG o PDF. Máx. 5MB).</p>
+                <div class="pago-card mb-3 <?= $esAdminView ? 'd-none' : '' ?>" id="seccionComprobante" style="<?= $esAdminView ? 'display:none;' : '' ?>">
+                    <h2 class="pago-h2"><span class="pago-num">2.</span> Sube tu comprobante de pago <?= $esAdminView ? '<small class="text-muted" id="compOpcional">(no requerido para usuario administrador)</small>' : '<span class="text-danger">*</span>' ?></h2>
+                    <p class="pago-text" id="compTexto">Adjunta una imagen o captura de tu comprobante de pago <strong><?= $esAdminView ? '(obligatorio solo para Yape/BCP)' : '(obligatorio)' ?></strong> (formato JPG, PNG o PDF. Máx. 5MB).</p>
 
                     <label class="dropzone" id="dropzone" for="comprobante">
                         <input type="file" id="comprobante" name="comprobante" accept=".jpg,.jpeg,.png,.pdf" hidden>
@@ -214,11 +310,11 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
                     </label>
                     <div class="dz-formats">Formatos soportados: JPG, PNG, PDF (Máx. 5MB)</div>
                     <div class="invalid-feedback d-none" id="fileError">Archivo no válido. Usa JPG, PNG o PDF de máximo 5MB.</div>
-
-                    <button type="submit" class="btn-enviar mt-3">
-                        <i class="bi bi-send me-2"></i> Relizar Reserva
-                    </button>
                 </div>
+
+                <button type="submit" class="btn-enviar mt-2">
+                    <i class="bi bi-send me-2"></i> Realizar Reserva
+                </button>
             </form>
         </div>
 
@@ -265,8 +361,8 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
                 <div class="resumen-alerta">
                     <span class="ra-ico"><i class="bi bi-clock-history"></i></span>
                     <span>
-                        <strong>Pago en revisión</strong>
-                        <small>Hemos recibido tu comprobante. Te notificaremos por WhatsApp y correo cuando se confirme tu pago.</small>
+                        <strong>Revisión de Pago</strong>
+                        <small>Una vez verificado tu comprobante. Te notificaremos para completar la reserva.</small>
                     </span>
                 </div>
             </div>
@@ -313,6 +409,16 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
     .step .lbl { font-size: .62rem; }
     .stepper { gap: 4px; }
 }
+/* Cliente searchable select (Google Drive style) */
+.cs-dropdown { position:absolute; top:calc(100% + 6px); left:0; right:0; background:#fff; border:1px solid #e2e8f0; border-radius:12px; box-shadow:0 12px 28px rgba(16,28,51,.14); max-height:260px; overflow-y:auto; z-index:1050; padding:4px; }
+.cs-item { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; cursor:pointer; }
+.cs-item:hover, .cs-item.active { background:#f1f5f9; }
+.cs-avatar { width:32px; height:32px; border-radius:50%; background:#eef7f0; color:#1a7a3a; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:.85rem; }
+.cs-info { min-width:0; flex:1; }
+.cs-name { font-size:.82rem; font-weight:600; color:#101c33; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.cs-mail { font-size:.7rem; color:#7c8aa0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.cs-empty { padding:12px; text-align:center; font-size:.8rem; color:#7c8aa0; }
+.cs-mark { background:#fef08a; padding:0 2px; border-radius:3px; }
 /* Cards */
 .pago-card { background: #fff; border: 1px solid #e8eef4; border-radius: 12px; padding: 18px; box-shadow: 0 1px 2px rgba(16,28,51,.04); }
 .pago-card-title { font-weight: 800; color: #101c33; margin-bottom: 10px; }
@@ -372,13 +478,33 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
 </style>
 
 <script>
+var ES_ADMIN = <?= $esAdminView ? 'true' : 'false' ?>;
+var actualizarResumenGlobal = null;
 function elegirMetodo(m) {
-    const yape = m === 'yape';
-    document.getElementById('btnYape').classList.toggle('active', yape);
-    document.getElementById('btnBcp').classList.toggle('active', !yape);
-    document.getElementById('panelYape').classList.toggle('d-none', !yape);
-    document.getElementById('panelBcp').classList.toggle('d-none', yape);
-    document.getElementById('metodo_pago').value = yape ? 'yape' : 'transferencia_bcp';
+    var esEfectivo = m === 'efectivo';
+    var esYape = m === 'yape';
+    var esBcp = m === 'bcp' || m === 'transferencia_bcp';
+    var btnEfe = document.getElementById('btnEfectivo');
+    var btnYape = document.getElementById('btnYape');
+    var btnBcp = document.getElementById('btnBcp');
+    var pEfe = document.getElementById('panelEfectivo');
+    var pYape = document.getElementById('panelYape');
+    var pBcp = document.getElementById('panelBcp');
+    var secComp = document.getElementById('seccionComprobante');
+    if(btnEfe) btnEfe.classList.toggle('active', esEfectivo);
+    if(btnYape) btnYape.classList.toggle('active', esYape);
+    if(btnBcp) btnBcp.classList.toggle('active', esBcp);
+    if(pEfe) pEfe.classList.toggle('d-none', !esEfectivo);
+    if(pYape) pYape.classList.toggle('d-none', !esYape);
+    if(pBcp) pBcp.classList.toggle('d-none', !esBcp);
+    document.getElementById('metodo_pago').value = esEfectivo ? 'efectivo' : (esYape ? 'yape' : 'transferencia_bcp');
+    if(ES_ADMIN && secComp){
+        var ocultar = esEfectivo;
+        secComp.classList.toggle('d-none', ocultar);
+        secComp.style.display = ocultar ? 'none' : '';
+    }
+    // actualizar resumen para reflejar pago completo vs adelanto
+    if(typeof actualizarResumenGlobal === 'function') actualizarResumenGlobal();
 }
 
 function copiarNumero(num, btn) {
@@ -441,23 +567,46 @@ function copiarNumero(num, btn) {
         mostrar(f);
     });
 
-    // Resumen dinámico
+    // Resumen dinámico (soporta admin con selects y cliente con hidden)
     const selCancha = document.getElementById('cancha_id');
     const inpFecha = document.getElementById('fecha');
     const selHora = document.getElementById('hora_inicio');
     const selDur = document.getElementById('duracion_horas');
     const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
     const meses = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    const canchasData = <?= json_encode(array_map(function($c) use ($tipoLabels){ return ['id'=> (int)$c['id'], 'nombre'=>$c['nombre'], 'tipo'=>$tipoLabels[$c['tipo']] ?? $c['tipo'], 'precio'=>$c['precio_hora'], 'capacidad'=>$c['capacidad']]; }, $canchas), JSON_UNESCAPED_UNICODE) ?>;
+
+    function getCanchaData(){
+        if(!selCancha) return null;
+        if(selCancha.tagName === 'SELECT'){
+            const opt = selCancha.options[selCancha.selectedIndex];
+            if(!opt || !opt.value) return null;
+            return {
+                precio: parseFloat(opt.dataset.precio || '0'),
+                nombre: opt.dataset.nombre || '',
+                tipo: opt.dataset.tipo || '',
+                capacidad: opt.dataset.capacidad || ''
+            };
+        } else {
+            const id = selCancha.value;
+            const found = canchasData.find(function(c){ return String(c.id) === String(id); });
+            if(found) return { precio: parseFloat(found.precio), nombre: found.nombre, tipo: found.tipo, capacidad: found.capacidad };
+            return null;
+        }
+    }
 
     function actualizarResumen() {
-        const opt = selCancha.options[selCancha.selectedIndex];
-        const precio = parseFloat(opt ? opt.dataset.precio || '0' : '0');
-        const nombre = opt ? (opt.dataset.nombre || '') : '';
-        const tipo = opt ? (opt.dataset.tipo || '') : '';
-        const cap = opt ? (opt.dataset.capacidad || '') : '';
-        const dur = parseInt(selDur.value || '1', 10);
+        const data = getCanchaData();
+        const precio = data ? parseFloat(data.precio || '0') : 0;
+        const nombre = data ? data.nombre : '';
+        const tipo = data ? data.tipo : '';
+        const cap = data ? data.capacidad : '';
+        const dur = parseFloat((selDur && selDur.value) ? selDur.value : '1');
         const total = precio * dur;
-        const saldo = Math.max(0, total - 20);
+        var metodoActual = document.getElementById('metodo_pago') ? document.getElementById('metodo_pago').value : 'yape';
+        var esEfectivoActual = ES_ADMIN && metodoActual === 'efectivo';
+        const saldo = esEfectivoActual ? 0 : Math.max(0, total - 20);
+        const adelanto = esEfectivoActual ? total : 20;
 
         if (nombre) document.getElementById('resCanchaNombre').textContent = nombre.toUpperCase();
         if (tipo) document.getElementById('resCanchaTipo').textContent = tipo + ' - Césped sintético';
@@ -472,7 +621,7 @@ function copiarNumero(num, btn) {
         if (selHora.value) {
             const ini = selHora.value;
             const finDate = new Date('2000-01-01T' + ini + ':00');
-            finDate.setHours(finDate.getHours() + dur);
+            finDate.setTime(finDate.getTime() + Math.round(dur * 3600 * 1000));
             const fin = String(finDate.getHours()).padStart(2, '0') + ':' + String(finDate.getMinutes()).padStart(2, '0');
             document.getElementById('resHorario').textContent = ini + ' - ' + fin + ' (' + dur + ' hora' + (dur > 1 ? 's' : '') + ')';
         }
@@ -480,12 +629,18 @@ function copiarNumero(num, btn) {
         document.getElementById('resPrecioHora').textContent = 'S/ ' + precio.toFixed(0);
         document.getElementById('resTotal').textContent = 'S/ ' + total.toFixed(0);
         document.getElementById('resSaldo').textContent = 'S/ ' + saldo.toFixed(0);
+        var adelantoRow = document.querySelector('.resumen-pago .rp-row.verde strong');
+        if(adelantoRow) adelantoRow.textContent = 'S/ ' + adelanto.toFixed(0);
+        var adelantoLbl = document.querySelector('.resumen-pago .rp-row.verde span');
+        if(adelantoLbl) adelantoLbl.textContent = esEfectivoActual ? 'Pago completo (hoy)' : 'Adelanto requerido (hoy)';
     }
+    actualizarResumenGlobal = actualizarResumen;
 
-    // Oculta las horas que ya pasaron cuando la fecha elegida es hoy (hora de Lima)
+    // Oculta las horas que ya pasaron cuando la fecha elegida es hoy (hora de Lima) - solo si es select
     const HOY_STR = <?= json_encode($hoyStr) ?>;
     const HORA_MIN_HOY = <?= (int)$horaMinHoy ?>;
     function filtrarHoras() {
+        if(!selHora || selHora.tagName !== 'SELECT' || !inpFecha) return;
         const esHoySel = (inpFecha.value === HOY_STR);
         let seleccionValida = true;
         let visibles = 0;
@@ -508,24 +663,128 @@ function copiarNumero(num, btn) {
     filtrarHoras();
     actualizarResumen();
 
-    // Validación previa: avisa qué falta antes de reservar (comprobante obligatorio)
+    // Admin: sincronizar cliente_nombre con datalist -> cliente_id oculto
+    // --- Cliente searchable select (Google Drive style) ---
+    var clienteNombreInput = document.getElementById('cliente_nombre');
+    var clienteIdInput = document.getElementById('cliente_id');
+    var clienteDropdown = document.getElementById('clienteDropdown');
+    var clientesData = <?= json_encode(array_map(function($c){ return ['id'=> (int)$c['id'], 'nombre'=> $c['nombre'], 'email'=> $c['email'], 'telefono'=> $c['telefono'] ?? '']; }, $clientes ?? []), JSON_UNESCAPED_UNICODE) ?>;
+
+    function escHtml(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+    function highlight(text, q){
+        if(!q) return escHtml(text);
+        var idx = text.toLowerCase().indexOf(q.toLowerCase());
+        if(idx === -1) return escHtml(text);
+        return escHtml(text.slice(0,idx)) + '<span class="cs-mark">' + escHtml(text.slice(idx, idx+q.length)) + '</span>' + escHtml(text.slice(idx+q.length));
+    }
+    function filtrarClientes(q){
+        q = (q||'').trim().toLowerCase();
+        if(q.length < 1) return clientesData.slice(0,8);
+        return clientesData.filter(function(c){
+            return c.nombre.toLowerCase().includes(q) || c.email.toLowerCase().includes(q);
+        });
+    }
+    function renderDropdown(){
+        if(!clienteDropdown || !clienteNombreInput) return;
+        var q = clienteNombreInput.value;
+        var lista = filtrarClientes(q);
+        if(q.trim().length < 1){
+            // al hacer foco sin escribir, muestra hasta 8 recientes
+            lista = clientesData.slice(0,8);
+        }
+        if(lista.length === 0){
+            clienteDropdown.innerHTML = '<div class="cs-empty"><i class="bi bi-search me-1"></i> No se encontraron resultados</div>';
+            clienteDropdown.classList.remove('d-none');
+            return;
+        }
+        var html = '';
+        lista.forEach(function(c){
+            var ini = c.nombre.trim().charAt(0).toUpperCase() || '?';
+            html += '<div class="cs-item" data-id="'+c.id+'" data-nombre="'+escHtml(c.nombre)+'">'
+                + '<span class="cs-avatar">'+escHtml(ini)+'</span>'
+                + '<span class="cs-info"><span class="cs-name">'+highlight(c.nombre, q)+'</span><span class="cs-mail">'+highlight(c.email, q)+'</span></span>'
+                + '</div>';
+        });
+        clienteDropdown.innerHTML = html;
+        clienteDropdown.classList.remove('d-none');
+        // bind click
+        clienteDropdown.querySelectorAll('.cs-item').forEach(function(el){
+            el.addEventListener('click', function(){
+                var id = this.getAttribute('data-id');
+                var nombre = this.getAttribute('data-nombre');
+                clienteNombreInput.value = nombre;
+                clienteIdInput.value = id;
+                var found = clientesData.find(function(cc){ return String(cc.id) === String(id); });
+                var contactoEl = document.getElementById('contacto_telefono');
+                if(found && found.telefono && contactoEl && !contactoEl.value.trim()){
+                    contactoEl.value = found.telefono;
+                }
+                cerrarDropdown();
+                clienteNombreInput.focus();
+            });
+        });
+    }
+    function abrirDropdown(){ renderDropdown(); }
+    function cerrarDropdown(){ if(clienteDropdown) clienteDropdown.classList.add('d-none'); }
+    if(clienteNombreInput && clienteDropdown && clienteIdInput){
+        clienteNombreInput.addEventListener('focus', abrirDropdown);
+        clienteNombreInput.addEventListener('input', function(){
+            // si escribe manual, resetea id hasta seleccionar
+            var val = this.value.trim().toLowerCase();
+            var exact = clientesData.find(function(c){ return c.nombre.toLowerCase() === val || c.email.toLowerCase() === val; });
+            clienteIdInput.value = exact ? String(exact.id) : '0';
+            var contactoEl2 = document.getElementById('contacto_telefono');
+            if(exact && exact.telefono && contactoEl2 && !contactoEl2.value.trim()){
+                contactoEl2.value = exact.telefono;
+            }
+            renderDropdown();
+        });
+        clienteNombreInput.addEventListener('keydown', function(e){
+            if(e.key === 'Escape'){ cerrarDropdown(); this.blur(); }
+            if(e.key === 'Enter'){
+                var first = clienteDropdown.querySelector('.cs-item');
+                if(first && !clienteDropdown.classList.contains('d-none')){
+                    e.preventDefault();
+                    first.click();
+                }
+            }
+        });
+        // cerrar al hacer click fuera
+        document.addEventListener('click', function(e){
+            var wrap = clienteNombreInput.closest('.cs-wrap');
+            if(!wrap || !wrap.contains(e.target)) cerrarDropdown();
+        });
+        // cerrar al perder foco (con delay para permitir click en item)
+        clienteNombreInput.addEventListener('blur', function(){
+            setTimeout(function(){
+                if(!clienteDropdown.matches(':hover')) cerrarDropdown();
+            }, 150);
+        });
+    }
+
+    // Validación previa: avisa qué falta antes de reservar (comprobante obligatorio excepto efectivo admin)
     const form = document.getElementById('formPago');
     const formAlert = document.getElementById('formAlert');
     const formAlertList = document.getElementById('formAlertList');
 
     form.addEventListener('submit', e => {
         const faltantes = [];
+        if (ES_ADMIN && clienteNombreInput && !clienteNombreInput.value.trim()) faltantes.push('Ingresa el nombre del cliente.');
+        var contactoInput = document.getElementById('contacto_telefono');
+        if (!contactoInput || !contactoInput.value.trim()) faltantes.push('Ingresa un número de contacto (WhatsApp).');
         if (!selCancha.value) faltantes.push('Selecciona una cancha.');
         if (!inpFecha.value) faltantes.push('Elige la fecha del partido.');
         if (!selHora.value) faltantes.push('Elige la hora de inicio.');
         if (!selDur.value) faltantes.push('Elige la duración del partido.');
+        var metodoAhora = document.getElementById('metodo_pago').value;
+        var requiereComp = !ES_ADMIN;
         const f = input.files[0];
-        if (!f) {
+        if (requiereComp && !f) {
             faltantes.push('Sube tu comprobante de pago (JPG, PNG o PDF, máx. 5MB).');
             err.textContent = 'Falta tu comprobante de pago. Súbelo para continuar.';
             err.classList.remove('d-none');
             dz.style.borderColor = '#dc2626';
-        } else if (!validar(f)) {
+        } else if (f && !validar(f)) {
             faltantes.push('El comprobante no es válido. Usa JPG, PNG o PDF de máximo 5MB.');
         }
 
@@ -545,6 +804,8 @@ function copiarNumero(num, btn) {
     [selCancha, inpFecha, selHora, selDur].forEach(el => el && el.addEventListener('change', () => {
         formAlert.classList.add('d-none');
     }));
+    var contactoForAlert = document.getElementById('contacto_telefono');
+    if(contactoForAlert) contactoForAlert.addEventListener('input', () => formAlert.classList.add('d-none'));
     input.addEventListener('change', () => {
         dz.style.borderColor = '';
     });

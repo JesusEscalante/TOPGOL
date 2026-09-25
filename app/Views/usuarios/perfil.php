@@ -73,8 +73,11 @@ $desde = isset($usuario['created_at']) ? date('d/m/Y', strtotime((string)$usuari
                                 <div class="form-text">El correo no se puede modificar.</div>
                             </div>
                             <div class="col-md-6">
-                                <label for="telefono" class="form-label fw-semibold">Teléfono / WhatsApp</label>
-                                <input type="tel" class="form-control" id="telefono" name="telefono" value="<?= htmlspecialchars((string)($usuario['telefono'] ?? '')) ?>" placeholder="+51 987 654 321">
+                                <label for="telefono" class="form-label fw-semibold">Número de contacto (celular / WhatsApp)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text" style="background:#f8fafc; font-weight:700; color:#334155; border-color:#e2e8f0;">+51</span>
+                                    <input type="tel" class="form-control" id="telefono" name="telefono" value="<?= htmlspecialchars(preg_replace('/^\+51\s*/', '', (string)($usuario['telefono'] ?? ''))) ?>" placeholder="987 654 321">
+                                </div>
                             </div>
                         </div>
                         <button type="submit" class="btn btn-topgol fw-bold mt-3 px-4">

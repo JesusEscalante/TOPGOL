@@ -75,14 +75,15 @@ $navActive = static function (string ...$rutas) use ($rutaActual): string {
                 <li class="nav-item">
                     <a class="nav-link <?= $navActive('/canchas', '/cancha') ?>" href="<?= url('/canchas') ?>">Canchas</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link <?= $navActive('/eventos', '/evento') ?>" href="<?= url('/eventos') ?>">Eventos</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link <?= $navActive('/contacto') ?>" href="<?= url('/contacto') ?>">Contacto</a>
+                </li>
                 <?php if ($loggedIn && !$esAdmin): ?>
                     <li class="nav-item">
                         <a class="nav-link <?= $navActive('/mis-reservas') ?>" href="<?= url('/mis-reservas') ?>">Mis Reservas</a>
-                    </li>
-                <?php endif; ?>
-                <?php if ($esAdmin): ?>
-                    <li class="nav-item">
-                        <a class="nav-link <?= $navActive('/reservas', '/reserva', '/mis-reservas') ?>" href="<?= url('/reservas') ?>">Reservas</a>
                     </li>
                 <?php endif; ?>
             </ul>

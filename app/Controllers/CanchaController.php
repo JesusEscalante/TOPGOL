@@ -32,8 +32,17 @@ class CanchaController extends Controller {
             $fecha = date('Y-m-d');
         }
 
-        // Obtener canchas filtradas
-        $canchas = $modeloCancha->obtenerConFiltros($fecha, $horario, $tipo);
+        // Obtener canchas filtradas (admin ve también las en mantenimiento)
+        $esAdmin = isAdmin();
+        if ($esAdmin) {
+            $canchas = $modeloCancha->obtenerTodas();
+            if ($tipo !== '') {
+                $canchas = array_values(array_filter($canchas, static fn($c) => $c['tipo'] === $tipo));
+            }
+            // Admin: no filtrar por disponibilidad horaria, debe ver las en mantenimiento para reactivarlas
+        } else {
+            $canchas = $modeloCancha->obtenerConFiltros($fecha, $horario, $tipo);
+        }
 
         // Slots realmente ocupados en la fecha del filtro (para pintar los horarios tomados)
         $modeloReserva = new Reserva();
@@ -194,6 +203,26 @@ class CanchaController extends Controller {
             sessionFlash('info', 'No se detectaron cambios en los datos de la cancha.', 'info');
         }
 
+        $this->redirect('/canchas');
+    }
+
+    /**
+     * Cambia el estado de una cancha entre disponible y mantenimiento (Solo Admin)
+     */
+    public function toggleEstado(string|int $id): void {
+        $this->requireAdmin();
+        $this->validateCsrf();
+        $idCancha = (int)$id;
+        $modeloCancha = new Cancha();
+        $cancha = $modeloCancha->obtenerPorId($idCancha);
+        if (!$cancha) {
+            sessionFlash('error', 'La cancha no fue encontrada.', 'warning');
+            $this->redirect('/canchas');
+        }
+        $nuevo = $cancha['estado'] === 'disponible' ? 'mantenimiento' : 'disponible';
+        $modeloCancha->cambiarEstado($idCancha, $nuevo);
+        $msg = $nuevo === 'disponible' ? "Cancha '{$cancha['nombre']}' reactivada como disponible." : "Cancha '{$cancha['nombre']}' puesta en mantenimiento.";
+        sessionFlash('success', $msg, 'success');
         $this->redirect('/canchas');
     }
 

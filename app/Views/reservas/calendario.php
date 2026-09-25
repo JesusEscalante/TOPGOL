@@ -96,26 +96,23 @@ $canchaCorta = static function (string $nombre): string {
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($horas as $slot): ?>
+                        <?php for($h=7;$h<=23;$h++): $hStr=sprintf('%02d',$h); ?>
                             <tr>
-                                <th><?= $slot ?></th>
+                                <th><?= $hStr ?>:00</th>
                                 <?php foreach ($dias as $d): ?>
-                                    <?php $celda = $grilla[$d][$slot] ?? []; ?>
                                     <td class="<?= $d === $hoy ? 'hoy' : ($d < $hoy ? 'pasado' : '') ?>">
-                                        <?php $mostrar = array_slice($celda, 0, 3); ?>
-                                        <?php foreach ($mostrar as $r): ?>
+                                        <div style="display:flex; flex-direction:column; gap:3px;">
+                                        <?php foreach(['00','30'] as $mm): $slot=$hStr.':'.$mm; $celda=$grilla[$d][$slot] ?? []; if(empty($celda)) continue; $mostrar=array_slice($celda,0,2); foreach($mostrar as $r): ?>
                                             <a class="chip <?= $chipCls($r['estado']) ?>" href="<?= url('/mis-reservas/' . $r['id']) ?>" title="#<?= $r['id'] ?> · <?= htmlspecialchars($r['usuario_nombre']) ?> · <?= date('H:i', strtotime($r['hora_inicio'])) ?>-<?= date('H:i', strtotime($r['hora_fin'])) ?>">
                                                 <strong><?= date('H:i', strtotime($r['hora_inicio'])) ?> <?= htmlspecialchars($canchaCorta((string)$r['cancha_nombre'])) ?></strong>
                                                 <small><?= htmlspecialchars($r['usuario_nombre']) ?></small>
                                             </a>
-                                        <?php endforeach; ?>
-                                        <?php if (count($celda) > 3): ?>
-                                            <span class="mas">+<?= count($celda) - 3 ?> más</span>
-                                        <?php endif; ?>
+                                        <?php endforeach; if(count($celda)>2): ?><span class="mas">+<?= count($celda)-2 ?> más</span><?php endif; endforeach; ?>
+                                        </div>
                                     </td>
                                 <?php endforeach; ?>
                             </tr>
-                        <?php endforeach; ?>
+                        <?php endfor; ?>
                     </tbody>
                 </table>
                 </div>

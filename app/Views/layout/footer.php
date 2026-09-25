@@ -27,7 +27,7 @@
                     <div class="f-icon"><i class="bi bi-geo-alt-fill"></i></div>
                     <div class="f-txt">
                         <strong>Instalaciones de calidad</strong>
-                        <span>Canchas siempre listas, Facil acceso y seguridad</span>
+                        <span>Canchas siempre listas, facil acceso y seguridad</span>
                     </div>
                 </div>
             </div>
@@ -82,9 +82,8 @@
                 </div>
             </div>
         </div>
-        <div class="border-top pt-3 d-flex flex-wrap justify-content-between align-items-center" style="border-color:rgba(255,255,255,0.07) !important;">
+        <div class="border-top pt-3 d-flex flex-wrap justify-content-center align-items-center" style="border-color:rgba(255,255,255,0.07) !important;">
             <small>&copy; <?= date('Y') ?> <strong style="color:#fff;">TOP GOL</strong>. Todos los derechos reservados.</small>
-            <small>PHP 8+ MVC &mdash; Sistema de Reservas de Canchas</small>
         </div>
     </div>
 </footer>

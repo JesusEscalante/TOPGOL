@@ -70,7 +70,7 @@ declare(strict_types=1);
                                     <i class="bi bi-clock text-secondary me-1"></i>
                                     <?= date('h:i A', strtotime($r['hora_inicio'])) ?> - <?= date('h:i A', strtotime($r['hora_fin'])) ?>
                                 </td>
-                                <td><?= $r['duracion_horas'] ?> <?= $r['duracion_horas'] == 1 ? 'hora' : 'horas' ?></td>
+                                <td><?php $dh=(float)$r['duracion_horas']; echo $dh==0.5 ? '30 minutos' : ($dh==1 ? '1 hora' : rtrim(rtrim(number_format($dh,1), '0'), '.') . ' horas'); ?></td>
                                 <td class="fw-bold text-success"><?= formatPrice($r['total_pago']) ?></td>
                                 <td>
                                     <span class="pill <?= $estadoCls ?>">

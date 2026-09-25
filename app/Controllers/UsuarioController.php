@@ -32,8 +32,14 @@ class UsuarioController extends Controller {
         $estadisticas['total_canchas'] = $modeloCancha->contarCanchas();
         $estadisticas['total_usuarios'] = $modeloUsuario->contarUsuarios();
 
-        $hoy = date('Y-m-d');
-        $ayer = date('Y-m-d', strtotime('-1 day'));
+        $hoyReal = date('Y-m-d');
+        $lunes = date('Y-m-d', strtotime($hoyReal . ' -' . (date('N', strtotime($hoyReal)) - 1) . ' days'));
+        $domingo = date('Y-m-d', strtotime($lunes . ' +6 days'));
+        $hoy = trim($_GET['fecha'] ?? $hoyReal);
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $hoy) || $hoy < $lunes || $hoy > $domingo) {
+            $hoy = $hoyReal;
+        }
+        $ayer = date('Y-m-d', strtotime($hoy . ' -1 day'));
         $todas = $modeloReserva->obtenerTodas();
 
         // Reservas de hoy / ayer (excluye canceladas)
@@ -65,12 +71,14 @@ class UsuarioController extends Controller {
 
         $recientes = array_slice($todas, 0, 5);
 
-        // Ocupación de canchas hoy (todas las canchas, bloques de 07:00 a 00:00)
+        // Ocupación de canchas hoy (todas las canchas, bloques de 30 min 07:00-00:00)
         $canchas = $modeloCancha->obtenerTodas();
         $ocupCanchas = array_values($canchas);
         $horas = [];
         for ($h = 7; $h <= 23; $h++) {
-            $horas[] = sprintf('%02d:00', $h);
+            foreach (['00','30'] as $mm) {
+                $horas[] = sprintf('%02d:%s', $h, $mm);
+            }
         }
         $ocupacion = [];
         foreach ($ocupCanchas as $c) {
@@ -83,10 +91,11 @@ class UsuarioController extends Controller {
                 $bloques = $modeloReserva->obtenerHorariosOcupados((int)$c['id'], $hoy);
                 foreach ($horas as $slot) {
                     $ini = $slot . ':00';
-                    $fin = date('H:i:s', strtotime($slot . ' +1 hour'));
+                    $fin = date('H:i:s', strtotime($slot . ' +30 minutes'));
                     if ($fin === '00:00:00') {
                         $fin = '24:00:00';
                     }
+                    // 23:30 -> 00:00 ya es 24:00:00
                     $ocupada = false;
                     foreach ($bloques as $b) {
                         $bFin = $b['hora_fin'] === '00:00:00' ? '24:00:00' : $b['hora_fin'];
@@ -108,6 +117,9 @@ class UsuarioController extends Controller {
             'ultimasReservas' => array_slice($todas, 0, 8),
             'canchas'         => $canchas,
             'hoy'             => $hoy,
+            'hoyReal'         => $hoyReal,
+            'lunes'           => $lunes,
+            'domingo'         => $domingo,
             'reservasHoy'     => count($reservasHoy),
             'pctReservas'     => $pct(count($reservasHoy), count($reservasAyer)),
             'ingresosHoy'     => $ingresosHoy,
@@ -161,6 +173,15 @@ class UsuarioController extends Controller {
         $post = $this->sanitizePost();
         $nombre = trim($post['nombre'] ?? '');
         $telefono = trim($post['telefono'] ?? '');
+        // Normalizar teléfono con etiqueta +51 (el input trae solo los 9 dígitos)
+        if ($telefono !== '') {
+            $telefono = preg_replace('/\s+/', '', $telefono);
+            if (!str_starts_with($telefono, '+')) {
+                $telefono = '+51 ' . ltrim($telefono, '0');
+            } else {
+                $telefono = preg_replace('/^\+51\s*/', '+51 ', $telefono);
+            }
+        }
         $usuarioId = (int)$_SESSION['usuario_id'];
 
         if (strlen($nombre) < 3) {

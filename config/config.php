@@ -41,15 +41,19 @@ define('APP_NAME', $_ENV['APP_NAME'] ?? 'TOP GOL');
 define('APP_ENV', $_ENV['APP_ENV'] ?? 'development');
 
 // Deteccion y definicion de URL_BASE
-if (!empty($_ENV['APP_URL'])) {
-    define('URL_BASE', rtrim($_ENV['APP_URL'], '/'));
-} else {
-    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
-    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+// Se detecta dinamicamente el host y puerto actuales para que la aplicacion
+// funcione sin importar si Apache corre en el puerto 80, 8080 u otro.
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
+$host = $_SERVER['HTTP_HOST'] ?? '';
+if (!empty($host)) {
     $scriptDir = dirname($_SERVER['SCRIPT_NAME'] ?? '');
     $base = rtrim($protocol . $host . str_replace('\\', '/', $scriptDir), '/');
     $base = preg_replace('/\/public$/', '', $base);
     define('URL_BASE', $base);
+} elseif (!empty($_ENV['APP_URL'])) {
+    define('URL_BASE', rtrim($_ENV['APP_URL'], '/'));
+} else {
+    define('URL_BASE', $protocol . 'localhost');
 }
 
 // Controlador y metodo por defecto
