@@ -60,7 +60,7 @@ class NotificacionController extends Controller {
         while ((time() - $start) < 25) {
             if (connection_aborted()) break;
             // Buscar nuevas notificaciones desde lastId
-            $nuevas = $m->select("SELECT * FROM notificaciones WHERE usuario_id = ? AND id > ? ORDER BY id ASC", [$uid, $lastId]);
+            $nuevas = $m->obtenerNuevasDesde($uid, $lastId);
             foreach ($nuevas as $n) {
                 $lastId = (int)$n['id'];
                 echo "event: notificacion\n";

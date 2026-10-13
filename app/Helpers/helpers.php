@@ -232,3 +232,180 @@ function asset(string $ruta): string {
     $rutaLimpia = ltrim($ruta, '/');
     return URL_BASE . '/assets/' . $rutaLimpia;
 }
+
+/**
+ * Genera el enlace de WhatsApp (wa.me) con texto preformateado y política de puntualidad
+ *
+ * @param array<string, mixed> $reserva
+ * @param string $tipo 'recordatorio' | 'tardanza' | 'reprogramacion' | 'consulta'
+ * @return string URL válida para WhatsApp
+ */
+function generarEnlaceWhatsApp(array $reserva, string $tipo = 'recordatorio'): string {
+    $rawTel = (string)($reserva['contacto_telefono'] ?? $reserva['usuario_telefono'] ?? '');
+    // Extraer únicamente dígitos
+    $digitos = preg_replace('/\D+/', '', $rawTel);
+    if (empty($digitos)) {
+        return '#';
+    }
+    // Si tiene 9 dígitos (formato estándar Perú 9xxxxxxxx), anteponer código 51
+    if (strlen($digitos) === 9) {
+        $digitos = '51' . $digitos;
+    }
+
+    $cliente = !empty($reserva['cliente_nombre']) ? trim((string)$reserva['cliente_nombre']) : (!empty($reserva['usuario_nombre']) ? trim((string)$reserva['usuario_nombre']) : 'estimado/a cliente');
+    $cancha = (string)($reserva['cancha_nombre'] ?? 'Cancha sintética');
+    $fecha = (string)($reserva['fecha'] ?? date('Y-m-d'));
+    $hIni = substr((string)($reserva['hora_inicio'] ?? '00:00'), 0, 5);
+    $hFin = substr((string)($reserva['hora_fin'] ?? '00:00'), 0, 5);
+    $id = (int)($reserva['id'] ?? 0);
+
+    $msg = match ($tipo) {
+        'tardanza' => "Hola {$cliente}, le saludamos de TOP GOL. Le recordamos que su reserva #{$id} en la {$cancha} inició a las {$hIni}. Han transcurrido más de 10 min de tolerancia. Por favor confírmenos si se encuentra en camino. Le recordamos que el horario culmina puntualmente a las {$hFin}.",
+        'reprogramacion' => "Hola {$cliente}, le saludamos de TOP GOL. Le confirmamos la reprogramación de su reserva #{$id}: {$cancha}, fecha {$fecha} de {$hIni} a {$hFin}. ¡Le esperamos puntualmente!",
+        'consulta' => "Hola {$cliente}, le saludamos de TOP GOL respecto a su reserva #{$id} ({$cancha}, {$fecha} {$hIni}-{$hFin}). ¿Nos confirma si todo está conforme?",
+        default => "Hola {$cliente}, le saludamos de TOP GOL. Le recordamos su reserva #{$id} para hoy en {$cancha} de {$hIni} a {$hFin}. Recordamos que contamos con 10 min de tolerancia y el horario culmina estrictamente a las {$hFin}. ¿Nos confirma su asistencia?"
+    };
+
+    return 'https://wa.me/' . $digitos . '?text=' . urlencode($msg);
+}
+
+/**
+ * Calcula el estado operativo de puntualidad y asistencia en tiempo real
+ *
+ * @param array<string, mixed> $r
+ * @return array<string, mixed>
+ */
+function calcularEstadoPuntualidad(array $r): array {
+    $tz = new DateTimeZone('America/Lima');
+    $ahora = new DateTime('now', $tz);
+    $ahoraTs = $ahora->getTimestamp();
+
+    $fecha = (string)($r['fecha'] ?? date('Y-m-d'));
+    $hIniStr = (string)($r['hora_inicio'] ?? '00:00:00');
+    $hFinStr = (string)($r['hora_fin'] ?? '00:00:00');
+
+    $startDt = DateTime::createFromFormat('Y-m-d H:i:s', "{$fecha} {$hIniStr}", $tz)
+        ?: DateTime::createFromFormat('Y-m-d H:i', "{$fecha} {$hIniStr}", $tz)
+        ?: new DateTime("{$fecha} {$hIniStr}", $tz);
+    $startTs = $startDt->getTimestamp();
+
+    $endDt = DateTime::createFromFormat('Y-m-d H:i:s', "{$fecha} {$hFinStr}", $tz)
+        ?: DateTime::createFromFormat('Y-m-d H:i', "{$fecha} {$hFinStr}", $tz)
+        ?: new DateTime("{$fecha} {$hFinStr}", $tz);
+    if ($hFinStr === '00:00:00' || $endDt <= $startDt) {
+        $endDt->modify('+1 day');
+    }
+    $endTs = $endDt->getTimestamp();
+
+    $asistenciaEstado = (string)($r['asistencia_estado'] ?? 'sin_registrar');
+    $estadoReserva = (string)($r['estado'] ?? 'pendiente');
+
+    $minutosParaInicio = (int)ceil(($startTs - $ahoraTs) / 60);
+    $minutosDesdeInicio = (int)floor(($ahoraTs - $startTs) / 60);
+
+    // Regla de reprogramación: al menos 1 hora (3600 seg) antes del inicio y estado pendiente o confirmada
+    $puedeReprogramarRegla = ($startTs - $ahoraTs >= 3600) && in_array($estadoReserva, ['pendiente', 'confirmada'], true);
+
+    // Detección de proximidad: ventana de 30 minutos antes del inicio
+    $esProxima = ($minutosParaInicio > 0 && $minutosParaInicio <= 30 && in_array($estadoReserva, ['pendiente', 'confirmada'], true));
+
+    // Determinar código operativo y badges
+    if ($estadoReserva === 'cancelada') {
+        $codigo = $asistenciaEstado === 'no_asistio' ? 'no_asistio' : 'cancelada';
+        $label = $asistenciaEstado === 'no_asistio' ? 'No asistió (Cancha liberada)' : 'Cancelada';
+        $badge = 'danger';
+        $color = '#ef4444';
+    } elseif ($asistenciaEstado === 'presente') {
+        $codigo = 'presente';
+        $label = 'Presente / En cancha';
+        $badge = 'success';
+        $color = '#16a34a';
+    } elseif ($asistenciaEstado === 'tardanza') {
+        $codigo = 'tardanza';
+        $label = 'Llegó con tardanza';
+        $badge = 'warning';
+        $color = '#d97706';
+    } elseif ($asistenciaEstado === 'retraso_confirmado') {
+        $codigo = 'retraso_confirmado';
+        $label = 'Retraso avisado (En camino)';
+        $badge = 'info';
+        $color = '#0284c7';
+    } elseif ($asistenciaEstado === 'no_asistio') {
+        $codigo = 'no_asistio';
+        $label = 'No asistió';
+        $badge = 'danger';
+        $color = '#dc2626';
+    } else {
+        // sin_registrar
+        if ($ahoraTs < $startTs) {
+            if ($esProxima) {
+                $codigo = 'proxima';
+                $label = "Próxima ({$minutosParaInicio} min)";
+                $badge = 'primary';
+                $color = '#2563eb';
+            } else {
+                $codigo = 'programada';
+                $label = 'Programada';
+                $badge = 'secondary';
+                $color = '#64748b';
+            }
+        } elseif ($ahoraTs >= $startTs && $ahoraTs <= $endTs) {
+            if ($minutosDesdeInicio <= 10) {
+                $codigo = 'en_tolerancia';
+                $label = "En tolerancia ({$minutosDesdeInicio}/10 min)";
+                $badge = 'warning';
+                $color = '#f59e0b';
+            } else {
+                $codigo = 'tardanza_pendiente';
+                $label = "Tardanza (+{$minutosDesdeInicio} min sin llegar)";
+                $badge = 'danger';
+                $color = '#dc2626';
+            }
+        } else {
+            $codigo = 'finalizada_sin_asistencia';
+            $label = 'Culminó sin registro';
+            $badge = 'dark';
+            $color = '#334155';
+        }
+    }
+
+    return [
+        'codigo'                  => $codigo,
+        'label'                   => $label,
+        'badge'                   => $badge,
+        'color'                   => $color,
+        'asistencia_estado'       => $asistenciaEstado,
+        'minutos_para_inicio'     => $minutosParaInicio,
+        'minutos_desde_inicio'    => $minutosDesdeInicio,
+        'es_proxima'              => $esProxima,
+        'en_tolerancia'           => ($ahoraTs >= $startTs && $ahoraTs <= $endTs && $minutosDesdeInicio <= 10),
+        'tardanza_detectada'      => ($ahoraTs >= $startTs && $minutosDesdeInicio > 10 && in_array($asistenciaEstado, ['sin_registrar', 'tardanza'], true)),
+        'puede_reprogramar_regla' => $puedeReprogramarRegla,
+        'hora_fin_estricta'       => substr($hFinStr, 0, 5),
+        'aviso_horario_estricto'  => "El horario corre desde las " . substr($hIniStr, 0, 5) . " y termina puntualmente a las " . substr($hFinStr, 0, 5) . ". No se extiende por tardanza."
+    ];
+}
+
+/**
+ * Retorna la configuración de horario provisional del negocio para una fecha dada.
+ * Nota: Los horarios son de carácter provisional y referencial para el cálculo operativo,
+ * sujetos a confirmación por la empresa. Los administradores pueden registrar horarios extraordinarios.
+ *
+ * @param string $fecha YYYY-MM-DD
+ * @return array{apertura: string, cierre: string, horas_operativas: int, es_fin_de_semana: bool, descripcion: string}
+ */
+function getHorarioProvisionalNegocio(string $fecha): array {
+    $diaSemana = (int)date('N', strtotime($fecha)); // 1=Lunes, 7=Domingo
+    $esFinDeSemana = ($diaSemana >= 6);
+    $apertura = $esFinDeSemana ? '07:00' : '09:00';
+    $cierre = '23:00';
+    $horasOperativas = $esFinDeSemana ? 16 : 14;
+
+    return [
+        'apertura'         => $apertura,
+        'cierre'           => $cierre,
+        'horas_operativas' => $horasOperativas,
+        'es_fin_de_semana' => $esFinDeSemana,
+        'descripcion'      => $esFinDeSemana ? 'Sáb-Dom: 07:00 a 23:00 (16h)' : 'Lun-Vie: 09:00 a 23:00 (14h)',
+    ];
+}

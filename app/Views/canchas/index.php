@@ -5,9 +5,10 @@ $imgPorTipo = [
     'futbol_11' => 'https://images.unsplash.com/photo-1487466365202-1afdb86c764e?w=640&h=380&fit=crop&q=80',
 ];
 
-// Horario de atencion: 7:00 - 23:00
-$horaApertura = 7;
-$horaCierre = 24;
+$filtros = $filtros ?? ['fecha' => date('Y-m-d'), 'horario' => '', 'tipo' => '', 'duracion' => ''];
+$diaSemana = (int)date('N', strtotime($filtros['fecha']));
+$horaApertura = ($diaSemana >= 6) ? 7 : 9;
+$horaCierre = 23;
 $horaActual = (int)date('H');
 
 // Generar 5 slots dinamicos: las 5 horas siguientes a la actual (ej: 13:25 -> 14:00-18:00)
@@ -28,7 +29,7 @@ for ($h = $inicio; $h <= $fin; $h++) {
 }
 
 // Obtener filtros activos si existen
-$filtros = $filtros ?? ['fecha' => date('Y-m-d'), 'horario' => '', 'tipo' => ''];
+$filtros = $filtros ?? ['fecha' => date('Y-m-d'), 'horario' => '', 'tipo' => '', 'duracion' => ''];
 $meses = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 $fechaObj = new DateTime($filtros['fecha']);
 $fechaFormateada = $fechaObj->format('d') . ' de ' . $meses[(int)$fechaObj->format('m')] . ' de ' . $fechaObj->format('Y');
@@ -63,27 +64,21 @@ $tipoFormateado = $tipoLabels[$filtros['tipo']] ?? '';
             </span>
             <?php if ($filtros['horario']): ?>
                 <span class="badge text-bg-light border text-dark small px-3 py-2" style="font-size:0.7rem;">
-                    <i class="bi bi-clock me-1"></i> <?= $horarioFormateado ?>
+                    <i class="bi bi-clock me-1"></i> <?= $horarioFormateado ?> <?= $filtros['duracion'] ? '(' . $filtros['duracion'] . ' min)' : '' ?>
                     <a href="<?= url('/canchas?fecha=' . urlencode($filtros['fecha']) . '&tipo=' . urlencode($filtros['tipo'])) ?>" class="text-decoration-none ms-1" style="font-size:0.7rem;">&times;</a>
                 </span>
             <?php endif; ?>
             <?php if ($filtros['tipo']): ?>
                 <span class="badge text-bg-light border text-dark small px-3 py-2" style="font-size:0.7rem;">
                     <i class="bi bi-people me-1"></i> <?= $tipoFormateado ?>
-                    <a href="<?= url('/canchas?fecha=' . urlencode($filtros['fecha']) . '&horario=' . urlencode($filtros['horario'])) ?>" class="text-decoration-none ms-1" style="font-size:0.7rem;">&times;</a>
+                    <a href="<?= url('/canchas?fecha=' . urlencode($filtros['fecha']) . '&horario=' . urlencode($filtros['horario']) . '&duracion=' . urlencode($filtros['duracion'])) ?>" class="text-decoration-none ms-1" style="font-size:0.7rem;">&times;</a>
                 </span>
             <?php endif; ?>
             <a href="<?= url('/canchas') ?>" class="btn btn-sm btn-outline-secondary" style="font-size:0.7rem;padding:4px 10px;border-radius:20px;">Limpiar</a>
         </div>
         <?php endif; ?>
 
-        <!-- Filtros rapidos por tipo -->
-        <div class="d-flex gap-2 pb-3 flex-wrap" id="filtros-tipo">
-            <button class="btn btn-sm active" style="border-radius:20px;font-size:0.8rem;font-weight:600;padding:6px 16px;background:var(--tg-green);color:#fff;border:none;" onclick="filtrar('todas',this)">Todas (<?= count($canchas) ?>)</button>
-            <button class="btn btn-sm" style="border-radius:20px;font-size:0.8rem;font-weight:600;padding:6px 16px;border:1.5px solid #e2e8f0;background:#fff;color:#0f172a;" onclick="filtrar('futbol_5',this)">Futbol 5</button>
-            <button class="btn btn-sm" style="border-radius:20px;font-size:0.8rem;font-weight:600;padding:6px 16px;border:1.5px solid #e2e8f0;background:#fff;color:#0f172a;" onclick="filtrar('futbol_7',this)">Futbol 7</button>
-            <button class="btn btn-sm" style="border-radius:20px;font-size:0.8rem;font-weight:600;padding:6px 16px;border:1.5px solid #e2e8f0;background:#fff;color:#0f172a;" onclick="filtrar('futbol_11',this)">Futbol 11</button>
-        </div>
+        <!-- Filtros rápidos por tipo eliminados a petición -->
     </div>
 </div>
 
@@ -124,7 +119,7 @@ $tipoFormateado = $tipoLabels[$filtros['tipo']] ?? '';
                             </div>
 
                             <?php if ($disponible): ?>
-                                <div class="badge-disp">Disponible ahora</div>
+                                <div class="badge-disp">Cancha habilitada</div>
                             <?php else: ?>
                                 <div class="badge-ocup">En mantenimiento</div>
                             <?php endif; ?>
@@ -136,52 +131,41 @@ $tipoFormateado = $tipoLabels[$filtros['tipo']] ?? '';
 
                             <div class="cancha-img-overlay">
                                 <span class="ci-name"><?= htmlspecialchars($cancha['nombre']) ?></span>
-                                <span class="ci-type"><?= strtoupper(str_replace(['_','futbol '],['  ','Futbol '],$tipo)) ?> &bull; Cesped sintetico</span>
+                                <span class="ci-type">Características por confirmar</span>
                             </div>
                         </div>
 
                         <!-- Cuerpo -->
                         <div class="cancha-card-body">
                             <div class="c-features">
-                                <div class="c-feat"><i class="bi bi-people-fill"></i> Hasta <?= $cancha['capacidad'] ?> pers.</div>
-                                <?php if (!empty($cancha['iluminacion'])): ?>
-                                    <div class="c-feat"><i class="bi bi-lightbulb-fill"></i> Iluminacion LED</div>
-                                <?php endif; ?>
-                                <?php if (!empty($cancha['techada'])): ?>
-                                    <div class="c-feat"><i class="bi bi-shield-shaded"></i> Techada</div>
-                                <?php endif; ?>
+                                <div class="c-feat"><i class="bi bi-info-circle-fill"></i> Detalles de la instalación por confirmar</div>
                             </div>
 
-                            <div class="horarios-lbl">Horarios disponibles
-                                <?php if ($filtros['horario']): ?>
+                            <div class="horarios-lbl">Disponibilidad
+                                <?php if ($filtros['horario'] && $filtros['duracion']): ?>
                                     <span class="badge text-bg-success ms-2" style="font-size:0.65rem;">
-                                        <i class="bi bi-clock me-1"></i> Buscaste: <?= $horarioFormateado ?>
+                                        <i class="bi bi-check-circle me-1"></i> Libre <?= $horarioFormateado ?>
                                     </span>
                                 <?php endif; ?>
                             </div>
-                            <div class="horarios-row">
-                                <?php $ocupados = $slotsOcupados[(int)$cancha['id']] ?? []; ?>
-                                <?php $esHoyFiltro = ($filtros['fecha'] ?? '') === date('Y-m-d'); ?>
-                                <?php foreach ($horariosSlots as $slot): ?>
-                                    <?php
-                                        $horaInt = (int)explode(':',$slot)[0];
-                                        $horaActual = (int)date('H');
-                                        $isBuscado = $filtros['horario'] === $slot;
-                                        if (!$disponible) { $cls = 'ocupada'; }
-                                        elseif (in_array($slot, $ocupados, true)) { $cls = 'ocupada'; }
-                                        elseif ($esHoyFiltro && $horaInt < $horaActual) { $cls = 'pasada'; }
-                                        elseif ($isBuscado) { $cls = 'libre buscado'; }
-                                        else { $cls = 'libre'; }
-                                    ?>
-                                    <span class="hora-slot <?= $cls ?>" style="<?= $isBuscado ? 'box-shadow:0 0 0 2px var(--tg-green);font-weight:700;' : '' ?>"><?= $slot ?></span>
-                                <?php endforeach; ?>
+                            <div class="mb-3">
+                                <?php if ($filtros['horario'] && $filtros['duracion']): ?>
+                                    <span class="badge text-bg-light border text-dark w-100 py-2 d-flex align-items-center justify-content-center" style="font-size:0.75rem;font-weight:500;">
+                                        Disponible para tu reserva de <?= $filtros['duracion'] ?> min.
+                                    </span>
+                                <?php else: ?>
+                                    <span class="badge text-bg-light border text-dark w-100 py-2 d-flex align-items-center justify-content-center" style="font-size:0.75rem;font-weight:500;">
+                                        <i class="bi bi-calendar-check me-2 text-success"></i>
+                                        Consulta fecha, hora y duración exactas para validar.
+                                    </span>
+                                <?php endif; ?>
                             </div>
 
                             <!-- Acciones -->
                             <div class="d-grid gap-2">
                                 <?php if ($disponible): ?>
                                     <?php $reservaBase = isAdmin() ? '/reserva/crear/' : '/reserva/formulario/'; ?>
-                                    <a href="<?= url($reservaBase . $cancha['id']) . ($filtros['fecha'] ? '?fecha=' . urlencode($filtros['fecha']) . ($filtros['horario'] ? '&horario=' . urlencode($filtros['horario']) : '') : '') ?>" class="btn-reservar-v2">
+                                    <a href="<?= url($reservaBase . $cancha['id']) . ($filtros['fecha'] ? '?fecha=' . urlencode($filtros['fecha']) . ($filtros['horario'] ? '&horario=' . urlencode($filtros['horario']) . '&duracion=' . urlencode($filtros['duracion']) : '') : '') ?>" class="btn-reservar-v2">
                                         Reservar <?= htmlspecialchars($cancha['nombre']) ?>
                                     </a>
                                 <?php else: ?>

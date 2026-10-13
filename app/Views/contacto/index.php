@@ -9,14 +9,13 @@
                 <h1 style="font-size:2.6rem; font-weight:900; line-height:1.05; margin:12px 0 10px;">Estamos para<br><span style="color:var(--tg-green-bright); font-style:italic;">ayudarte</span></h1>
                 <p style="color:rgba(255,255,255,.82); font-size:.95rem; line-height:1.65; max-width:520px;">¿Dudas sobre reservas, eventos o cotizaciones? Escríbenos y te respondemos el mismo día por WhatsApp o correo.</p>
                 <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:16px;">
-                    <a href="https://wa.me/51987654321?text=Hola%20Top%20Gol" target="_blank" class="btn-search" style="background:#25D366; font-size:.85rem; padding:12px 20px;"><i class="bi bi-whatsapp"></i> WhatsApp</a>
                     <a href="#formContacto" class="btn btn-outline-light" style="border-radius:10px; font-weight:700; padding:12px 20px; font-size:.85rem;"><i class="bi bi-envelope me-1"></i> Enviar mensaje</a>
                 </div>
             </div>
             <div class="col-lg-5 d-none d-lg-block">
                 <div style="background:rgba(255,255,255,.08); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,.15); border-radius:20px; padding:20px; max-width:320px; margin-left:auto;">
-                    <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;"><span style="width:42px; height:42px; border-radius:10px; background:var(--tg-green); display:flex; align-items:center; justify-content:center; color:#fff;"><i class="bi bi-telephone-fill"></i></span><span><strong style="display:block; font-size:.9rem;">+51 987 654 321</strong><small style="color:rgba(255,255,255,.7); font-size:.7rem;">Lun - Dom 07:00 - 00:00</small></span></div>
-                    <div style="display:flex; align-items:center; gap:12px;"><span style="width:42px; height:42px; border-radius:10px; background:var(--tg-gold); display:flex; align-items:center; justify-content:center; color:#0f172a;"><i class="bi bi-geo-alt-fill"></i></span><span><strong style="display:block; font-size:.85rem;">Av. Deportiva 1234</strong><small style="color:rgba(255,255,255,.7); font-size:.7rem;">Complejo TOP GOL, Tacna</small></span></div>
+                    <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;"><span style="width:42px; height:42px; border-radius:10px; background:var(--tg-green); display:flex; align-items:center; justify-content:center; color:#fff;"><i class="bi bi-telephone-fill"></i></span><span><strong style="display:block; font-size:.9rem;">(Por confirmar)</strong><small style="color:rgba(255,255,255,.7); font-size:.7rem;">L-V 09:00-23:00 | S-D 07:00-23:00</small></span></div>
+                    <div style="display:flex; align-items:center; gap:12px;"><span style="width:42px; height:42px; border-radius:10px; background:var(--tg-gold); display:flex; align-items:center; justify-content:center; color:#0f172a;"><i class="bi bi-geo-alt-fill"></i></span><span><strong style="display:block; font-size:.85rem;">(Por confirmar)</strong><small style="color:rgba(255,255,255,.7); font-size:.7rem;">Complejo TOP GOL</small></span></div>
                 </div>
             </div>
         </div>
@@ -29,15 +28,13 @@
         <div class="col-lg-4">
             <div class="panel" style="background:#fff; border-radius:14px; padding:20px; box-shadow:0 1px 3px rgba(16,28,51,.07);">
                 <h5 class="fw-bold mb-3">Información</h5>
-                <div class="f-item mb-3"><div class="f-icon"><i class="bi bi-geo-alt-fill"></i></div><div class="f-txt"><strong>Dirección</strong><span>Av. Deportiva 1234, Complejo TOP GOL<br>Tacna, Perú</span></div></div>
-                <div class="f-item mb-3"><div class="f-icon"><i class="bi bi-telephone-fill"></i></div><div class="f-txt"><strong>Teléfono / WhatsApp</strong><span>+51 987 654 321<br><a href="https://wa.me/51987654321" target="_blank" style="color:var(--tg-green); font-weight:700; font-size:.78rem;">Abrir WhatsApp →</a></span></div></div>
-                <div class="f-item mb-3"><div class="f-icon"><i class="bi bi-envelope-fill"></i></div><div class="f-txt"><strong>Correo</strong><span>reservas@topgol.com<br>eventos@topgol.com</span></div></div>
-                <div class="f-item"><div class="f-icon"><i class="bi bi-clock-fill"></i></div><div class="f-txt"><strong>Horario</strong><span>Lunes a Domingo<br>07:00 AM - 12:00 AM</span></div></div>
+                <div class="f-item mb-3"><div class="f-icon"><i class="bi bi-geo-alt-fill"></i></div><div class="f-txt"><strong>Dirección</strong><span>(Por confirmar)<br>Tacna, Perú</span></div></div>
+                <div class="f-item mb-3"><div class="f-icon"><i class="bi bi-telephone-fill"></i></div><div class="f-txt"><strong>Teléfono / WhatsApp</strong><span>(Por confirmar)</span></div></div>
+                <div class="f-item mb-3"><div class="f-icon"><i class="bi bi-envelope-fill"></i></div><div class="f-txt"><strong>Correo</strong><span>(Por confirmar)</span></div></div>
+                <div class="f-item"><div class="f-icon"><i class="bi bi-clock-fill"></i></div><div class="f-txt"><strong>Horario</strong><span>Lun a Vie: 09:00 - 23:00<br>Sab y Dom: 07:00 - 23:00</span></div></div>
                 <hr style="margin:16px 0; border-color:#eef2f7;">
                 <div style="display:flex; gap:12px; font-size:1.2rem;">
-                    <a href="#" style="color:#94a3b8;"><i class="bi bi-facebook"></i></a>
-                    <a href="#" style="color:#94a3b8;"><i class="bi bi-instagram"></i></a>
-                    <a href="https://wa.me/51987654321" style="color:#25D366;"><i class="bi bi-whatsapp"></i></a>
+                    <!-- Redes sociales por definir -->
                 </div>
             </div>
             <div class="panel mt-3" style="background:#0b1e33; color:#fff; border-radius:14px; padding:16px; text-align:center;">
@@ -97,8 +94,8 @@
 
             <!-- Mapa -->
             <div class="panel mt-3" style="background:#fff; border-radius:14px; padding:12px; box-shadow:0 1px 3px rgba(16,28,51,.07);">
-                <div style="border-radius:10px; overflow:hidden; height:260px; background:#e2e8f0;">
-                    <iframe src="https://www.google.com/maps?q=Top+Gol+Tacna&z=16&output=embed" width="100%" height="100%" style="border:0;" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                <div style="border-radius:10px; overflow:hidden; height:260px; background:#e2e8f0; display:flex; align-items:center; justify-content:center; color:#94a3b8;">
+                    <i class="bi bi-map" style="font-size:2rem; margin-right:10px;"></i> Mapa en construcción (Ubicación por confirmar)
                 </div>
             </div>
         </div>

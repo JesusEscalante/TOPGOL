@@ -77,15 +77,47 @@ $router->get('/mis-reservas/{id}', 'ReservaController@detalle', ['auth']);
 // Panel Administrador - Reservas
 $router->get('/admin/reservas', 'ReservaController@adminPanel', ['admin']);
 $router->get('/admin/calendario', 'ReservaController@calendario', ['admin']);
+$router->get('/admin/reserva/editar/{id}', 'ReservaController@adminEdit', ['admin']);
+$router->post('/admin/reserva/actualizar/{id}', 'ReservaController@adminUpdate', ['admin']);
+$router->post('/admin/reserva/asistencia/{id}', 'ReservaController@registrarAsistencia', ['admin']);
+$router->post('/admin/reserva/reprogramar/{id}', 'ReservaController@reprogramar', ['admin']);
+$router->post('/admin/reserva/contacto/{id}', 'ReservaController@registrarContacto', ['admin']);
 $router->post('/reserva/pago/{id}', 'ReservaController@updatePayment', ['admin']);
 
-// Panel Administrador - Productos (Inventario)
+// Panel Administrador - Pagos, Saldos y Caja (Fase 2D)
+$router->get('/admin/pagos', 'PagoController@index', ['admin']);
+$router->get('/admin/caja', 'PagoController@caja', ['admin']);
+$router->post('/admin/pago/registrar', 'PagoController@registrarCobro', ['admin']);
+$router->post('/admin/pago/verificar/{id}', 'PagoController@verificar', ['admin']);
+$router->post('/admin/pago/rechazar/{id}', 'PagoController@rechazar', ['admin']);
+
+// Panel Administrador - Productos (Catálogo)
 $router->get('/admin/productos', 'ProductoController@index', ['admin']);
 $router->get('/admin/productos/crear', 'ProductoController@create', ['admin']);
 $router->post('/admin/productos/guardar', 'ProductoController@store', ['admin']);
 $router->get('/admin/productos/editar/{id}', 'ProductoController@edit', ['admin']);
 $router->post('/admin/productos/actualizar/{id}', 'ProductoController@update', ['admin']);
+$router->post('/admin/productos/eliminar/{id}', 'ProductoController@delete', ['admin']);
 $router->get('/admin/productos/eliminar/{id}', 'ProductoController@delete', ['admin']);
+$router->post('/admin/productos/descontinuar/{id}', 'ProductoController@descontinuar', ['admin']);
+$router->post('/admin/productos/stock/{id}', 'ProductoController@ajustarStock', ['admin']);
+
+// Panel Administrador - Categorías Dinámicas (Fase 2E)
+$router->get('/admin/categorias', 'CategoriaController@index', ['admin']);
+$router->post('/admin/categorias/guardar', 'CategoriaController@store', ['admin']);
+$router->post('/admin/categorias/actualizar/{id}', 'CategoriaController@update', ['admin']);
+$router->post('/admin/categorias/toggle/{id}', 'CategoriaController@toggle', ['admin']);
+$router->post('/admin/categorias/eliminar/{id}', 'CategoriaController@delete', ['admin']);
+$router->get('/admin/categorias/eliminar/{id}', 'CategoriaController@delete', ['admin']);
+
+// Panel Administrador - Inventario y Kardex (Fase 2E)
+$router->get('/admin/inventario', 'ProductoController@inventario', ['admin']);
+
+// Panel Administrador - Ventas y POS Mostrador (Fase 2E)
+$router->get('/admin/ventas', 'VentaController@index', ['admin']);
+$router->get('/admin/ventas/pos', 'VentaController@pos', ['admin']);
+$router->post('/admin/ventas/guardar', 'VentaController@store', ['admin']);
+$router->get('/admin/ventas/detalle/{id}', 'VentaController@detalle', ['admin']);
 
 // Notificaciones tiempo real (SSE - push ligero, alternativa a WebSockets)
 $router->get('/api/notificaciones', 'NotificacionController@listar', ['admin']);
@@ -99,12 +131,21 @@ $router->get('/api/cancha/disponibilidad', 'ReservaController@checkAvailability'
 // Panel Administrativo y Usuarios
 $router->get('/admin/dashboard', 'UsuarioController@dashboard', ['admin']);
 $router->get('/admin/usuarios', 'UsuarioController@index', ['admin']);
+$router->get('/admin/reportes', 'ReporteController@index', ['admin']);
+$router->get('/admin/reportes/exportar', 'ReporteController@exportar', ['admin']);
 
 // Eventos - página informativa (pública) y reservas de eventos
 $router->get('/eventos', 'ReservaController@eventosInfo');
 $router->get('/evento', 'ReservaController@eventoCreate', ['auth']);
 $router->get('/evento/crear', 'ReservaController@eventoCreate', ['auth']);
 $router->post('/evento/guardar', 'ReservaController@eventoStore', ['auth']);
+
+// Cumpleaños y Espacios (Fase 2B)
+$router->get('/cumpleanos/solicitar', 'EspacioController@solicitar', ['auth']);
+$router->post('/cumpleanos/guardar', 'EspacioController@storeSolicitud', ['auth']);
+$router->get('/mis-solicitudes', 'EspacioController@misSolicitudes', ['auth']);
+$router->get('/admin/espacios', 'EspacioController@adminIndex', ['admin']);
+$router->post('/admin/espacios/estado/{id}', 'EspacioController@updateStatus', ['admin']);
 
 // Contacto (público)
 $router->get('/contacto', 'ContactoController@index');

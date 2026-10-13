@@ -25,6 +25,7 @@ class CanchaController extends Controller {
         // Obtener filtros del formulario de búsqueda (GET)
         $fecha = $_GET['fecha'] ?? date('Y-m-d');
         $horario = $_GET['horario'] ?? '';
+        $duracion = $_GET['duracion'] ?? '';
         $tipo = $_GET['tipo'] ?? '';
 
         // Validar fecha
@@ -41,7 +42,7 @@ class CanchaController extends Controller {
             }
             // Admin: no filtrar por disponibilidad horaria, debe ver las en mantenimiento para reactivarlas
         } else {
-            $canchas = $modeloCancha->obtenerConFiltros($fecha, $horario, $tipo);
+            $canchas = $modeloCancha->obtenerConFiltros($fecha, $horario, $tipo, $duracion);
         }
 
         // Slots realmente ocupados en la fecha del filtro (para pintar los horarios tomados)
@@ -58,6 +59,7 @@ class CanchaController extends Controller {
             'filtros'       => [
                 'fecha'    => $fecha,
                 'horario'  => $horario,
+                'duracion' => $duracion,
                 'tipo'     => $tipo,
             ]
         ]);
@@ -238,6 +240,16 @@ class CanchaController extends Controller {
         if (!$cancha) {
             sessionFlash('error', 'La cancha a eliminar no fue encontrada.', 'warning');
             $this->redirect('/canchas');
+        }
+
+        // Proteger el historial financiero y operativo: no permitir eliminar canchas con reservas o pagos
+        $db = \App\Config\Database::getConnection();
+        $stmtRes = $db->prepare("SELECT COUNT(*) FROM reservas WHERE cancha_id = ?");
+        $stmtRes->execute([$idCancha]);
+        if ((int)$stmtRes->fetchColumn() > 0) {
+            sessionFlash('error', "No se puede eliminar la cancha '{$cancha['nombre']}' porque tiene reservas e historial de pagos asociados. Cambia su estado a 'mantenimiento' para deshabilitarla.", 'danger');
+            $this->redirect('/canchas');
+            return;
         }
 
         $modeloCancha->eliminar($idCancha);

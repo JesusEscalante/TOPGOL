@@ -90,12 +90,35 @@ for ($h = $horaApertura; $h < $horaCierre; $h++) {
             <div class="s-field">
                 <div class="s-field-ico"><i class="bi bi-clock"></i></div>
                 <div class="s-field-txt">
-                    <span class="s-field-lbl">Horario</span>
-                    <select name="horario" class="s-field-val" style="border:none;background:transparent;font-size:0.875rem;font-weight:600;color:#0f172a;outline:none;width:100%;">
-                        <option value="">Cualquier horario</option>
-                        <?php for($h=7;$h<=22;$h++): ?>
-                            <option value="<?= sprintf('%02d:00',$h) ?>"><?= date('g:i A', strtotime(sprintf('%02d:00:00',$h))) ?></option>
-                        <?php endfor; ?>
+                    <span class="s-field-lbl">Hora de inicio</span>
+                    <div class="d-flex align-items-center gap-1" style="width:100%;">
+                        <select id="sel-hora" class="s-field-val" style="border:none;background:transparent;font-size:0.875rem;font-weight:600;color:#0f172a;outline:none;width:50%;padding:0;">
+                            <option value="">Hora</option>
+                            <?php for($h=7;$h<=22;$h++): ?>
+                                <option value="<?= sprintf('%02d',$h) ?>"><?= sprintf('%02d',$h) ?></option>
+                            <?php endfor; ?>
+                        </select>
+                        <span style="font-weight:bold;">:</span>
+                        <select id="sel-min" class="s-field-val" style="border:none;background:transparent;font-size:0.875rem;font-weight:600;color:#0f172a;outline:none;width:40%;padding:0;">
+                            <option value="00">00</option>
+                            <option value="30">30</option>
+                        </select>
+                    </div>
+                    <input type="hidden" name="horario" id="horario" value="">
+                </div>
+            </div>
+            <div class="s-divider"></div>
+            <!-- Campo Duración -->
+            <div class="s-field">
+                <div class="s-field-ico"><i class="bi bi-hourglass-split"></i></div>
+                <div class="s-field-txt">
+                    <span class="s-field-lbl">Duración</span>
+                    <select name="duracion" class="s-field-val" style="border:none;background:transparent;font-size:0.875rem;font-weight:600;color:#0f172a;outline:none;width:100%;">
+                        <option value="">Cualquier duración</option>
+                        <option value="30">30 minutos</option>
+                        <option value="60">1 hora</option>
+                        <option value="90">1 hora y 30 min</option>
+                        <option value="120">2 horas</option>
                     </select>
                 </div>
             </div>
@@ -196,15 +219,15 @@ for ($h = $horaApertura; $h < $horaCierre; $h++) {
 
                             <!-- Badge de estado -->
                             <?php if ($disponible): ?>
-                                <div class="badge-disp">Disponible ahora</div>
+                                <div class="badge-disp">Cancha habilitada</div>
                             <?php else: ?>
-                                <div class="badge-ocup">Ocupada ahora</div>
+                                <div class="badge-ocup">En mantenimiento</div>
                             <?php endif; ?>
 
                             <!-- Info sobre la imagen -->
                             <div class="cancha-img-overlay">
                                 <span class="ci-name"><?= $cancha['nombre'] ?></span>
-                                <span class="ci-type"><?= $tipoLabel ?> &bull; Cesped sintetico</span>
+                                <span class="ci-type">Características por confirmar</span>
                             </div>
                         </div>
 
@@ -212,33 +235,16 @@ for ($h = $horaApertura; $h < $horaCierre; $h++) {
                         <div class="cancha-card-body">
                             <!-- Caracteristicas -->
                             <div class="c-features">
-                                <div class="c-feat"><i class="bi bi-people-fill"></i> Hasta <?= $cancha['capacidad'] ?> personas</div>
-                                <?php if (!empty($cancha['iluminacion'])): ?>
-                                    <div class="c-feat"><i class="bi bi-lightbulb-fill"></i> Iluminacion LED</div>
-                                <?php endif; ?>
-                                <?php if (!empty($cancha['techada'])): ?>
-                                    <div class="c-feat"><i class="bi bi-shield-shaded"></i> Techada</div>
-                                <?php endif; ?>
+                                <div class="c-feat"><i class="bi bi-info-circle-fill"></i> Detalles de la instalación por confirmar</div>
                             </div>
 
                             <!-- Horarios disponibles -->
-                            <div class="horarios-lbl">Horarios disponibles</div>
-                            <div class="horarios-row">
-                                <?php $ocupados = $slotsOcupados[(int)$cancha['id']] ?? []; ?>
-                                <?php foreach ($horariosSlots as $slot): ?>
-                                    <?php
-                                        $horaInt = (int)explode(':', $slot)[0];
-                                        $horaActual = (int)date('H');
-                                        if (in_array($slot, $ocupados, true)) {
-                                            $cls = 'ocupada';
-                                        } elseif ($horaInt < $horaActual) {
-                                            $cls = 'pasada';
-                                        } else {
-                                            $cls = 'libre';
-                                        }
-                                    ?>
-                                    <span class="hora-slot <?= $cls ?>"><?= $slot ?></span>
-                                <?php endforeach; ?>
+                            <div class="horarios-lbl">Disponibilidad</div>
+                            <div class="mb-3">
+                                <span class="badge text-bg-light border text-dark w-100 py-2 d-flex align-items-center justify-content-center" style="font-size:0.75rem;font-weight:500;">
+                                    <i class="bi bi-calendar-check me-2 text-success"></i>
+                                    Consulta fecha, hora y duración exactas para validar.
+                                </span>
                             </div>
 
                             <!-- Precio -->
@@ -281,3 +287,14 @@ for ($h = $horaApertura; $h < $horaCierre; $h++) {
         </div>
     <?php endif; ?>
 </div>
+<script>
+document.querySelector('form.search-card').addEventListener('submit', function(e) {
+    let h = document.getElementById('sel-hora').value;
+    let m = document.getElementById('sel-min').value;
+    if (h) {
+        document.getElementById('horario').value = h + ':' + m;
+    } else {
+        document.getElementById('horario').value = '';
+    }
+});
+</script>

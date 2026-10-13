@@ -19,13 +19,19 @@ $inicial = mb_strtoupper(mb_substr($nombreAdmin, 0, 1));
 $adminMenuActivo = $adminMenu ?? 'dashboard';
 
 $nav = [
-    ['key' => 'dashboard', 'label' => 'Dashboard', 'ico' => 'bi-house', 'href' => url('/admin/dashboard')],
-    ['key' => 'reservas', 'label' => 'Reservas', 'ico' => 'bi-calendar', 'href' => url('/admin/reservas')],
-    ['key' => 'pagos', 'label' => 'Pagos', 'ico' => 'bi-credit-card', 'href' => url('/admin/reservas?pago=en_revision')],
-    ['key' => 'canchas', 'label' => 'Canchas', 'ico' => 'bi-grid', 'href' => url('/canchas')],
-    ['key' => 'ventas', 'label' => 'Ventas', 'ico' => 'bi-bar-chart', 'href' => '#'],
-    ['key' => 'productos', 'label' => 'Productos', 'ico' => 'bi-box', 'href' => url('/admin/productos')],
-    ['key' => 'inventario', 'label' => 'Inventario', 'ico' => 'bi-boxes', 'href' => url('/admin/productos?filtro=stock_bajo')],
+    ['key' => 'dashboard',  'label' => 'Dashboard',            'ico' => 'bi-house',               'href' => url('/admin/dashboard')],
+    ['key' => 'reservas',   'label' => 'Reservas',             'ico' => 'bi-calendar',            'href' => url('/admin/reservas')],
+    ['key' => 'calendario', 'label' => 'Calendario',           'ico' => 'bi-calendar3',           'href' => url('/admin/calendario')],
+    ['key' => 'espacios',   'label' => 'Espacios y cumpleaños', 'ico' => 'bi-balloon',            'href' => url('/admin/espacios')],
+    ['key' => 'pagos',      'label' => 'Pagos y Saldos',       'ico' => 'bi-credit-card-2-front', 'href' => url('/admin/pagos')],
+    ['key' => 'caja',       'label' => 'Caja del día',         'ico' => 'bi-cash-coin',           'href' => url('/admin/caja')],
+    ['key' => 'reportes',   'label' => 'Reportes y Datos',     'ico' => 'bi-bar-chart-line',      'href' => url('/admin/reportes')],
+    ['key' => 'canchas',    'label' => 'Canchas',              'ico' => 'bi-grid',                'href' => url('/canchas')],
+    ['key' => 'pos',        'label' => 'Venta Rápida (POS)',   'ico' => 'bi-cart-check',          'href' => url('/admin/ventas/pos')],
+    ['key' => 'ventas',     'label' => 'Historial Ventas',     'ico' => 'bi-receipt',             'href' => url('/admin/ventas')],
+    ['key' => 'productos',  'label' => 'Productos',            'ico' => 'bi-box',                 'href' => url('/admin/productos')],
+    ['key' => 'categorias', 'label' => 'Categorías',           'ico' => 'bi-tags',                'href' => url('/admin/categorias')],
+    ['key' => 'inventario', 'label' => 'Kardex / Stock',       'ico' => 'bi-boxes',               'href' => url('/admin/inventario')],
 ];
 ?>
 <!DOCTYPE html>

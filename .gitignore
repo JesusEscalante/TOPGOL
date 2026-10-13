@@ -1,0 +1,39 @@
+# ===================================================
+# TOP GOL - Archivos ignorados por Git (.gitignore)
+# ===================================================
+
+# Variables de entorno y credenciales sensibles
+.env
+.env.*
+!.env.example
+public/.env
+
+# Respaldos y volcados locales de base de datos
+database/backups/
+*.sql.bak
+*.dump
+
+# Comprobantes de pago y archivos subidos por usuarios
+/public/uploads/comprobantes/*
+!/public/uploads/comprobantes/index.html
+/uploads/
+
+# Dependencias externas
+/vendor/
+/node_modules/
+
+# Logs del sistema
+*.log
+/logs/
+
+# Archivos de configuración de IDE y sistema operativo
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Archivos temporales de pruebas y depuración
+scratch/

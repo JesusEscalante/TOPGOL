@@ -87,7 +87,7 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
                     <div class="pago-card-title">Datos de tu reserva</div>
                     <?php if ($esAdminView): ?>
                     <div class="row g-2 mb-2">
-                        <div class="col-12">
+                        <div class="col-md-7">
                             <label for="cliente_nombre" class="form-label fw-semibold small">Nombre del cliente <span class="text-danger">*</span></label>
                             <div class="cs-wrap" style="position:relative;">
                                 <input type="text" class="form-control" id="cliente_nombre" name="cliente_nombre" placeholder="Ej: Juan Pérez" autocomplete="off" required>
@@ -95,9 +95,17 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
                             </div>
                             <input type="hidden" id="cliente_id" name="cliente_id" value="0">
                         </div>
+                        <div class="col-md-5">
+                            <label for="origen" class="form-label fw-semibold small">Canal / Origen <span class="text-danger">*</span></label>
+                            <select class="form-select" id="origen" name="origen" required>
+                                <option value="presencial" selected>Presencial (Mostrador)</option>
+                                <option value="llamada">Llamada telefónica</option>
+                                <option value="whatsapp">WhatsApp</option>
+                            </select>
+                        </div>
                     </div>
                     <?php endif; ?>
-                    
+
                     <div class="row g-2">
                         <div class="col-md-6">
                             <label for="cancha_id" class="form-label fw-semibold small">Cancha <span class="text-danger">*</span></label>
@@ -125,7 +133,7 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
                                 <option value="" disabled <?= $horaPre === '' ? 'selected' : '' ?>>--:--</option>
                                 <?php
                                 for ($h = 7; $h <= 23; $h++):
-                                    foreach (['00','30'] as $mm):
+                                    foreach (['00','10','20','30','40','50'] as $mm):
                                         if ($h == 23 && $mm == '30') {
                                             // 23:30 es válido (termina 00:00 con 30m)
                                         }
@@ -177,11 +185,29 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
                 <!-- Sección 1 -->
                 <div class="pago-card mb-3" id="seccionPago">
                     <?php if ($esAdminView): ?>
-                    <h2 class="pago-h2"><span class="pago-num">1.</span> Método de pago</h2>
-                    <p class="pago-text" id="pagoTextoAdmin">Reserva presencial con el administrador: se realiza el <strong>pago completo</strong> sin adelanto y sin comprobante.</p>
+                    <h2 class="pago-h2"><span class="pago-num">1.</span> Cobro y método de pago</h2>
+                    <p class="pago-text" id="pagoTextoAdmin">Reserva presencial / mostrador: selecciona el tipo de cobro y el medio de pago recibido.</p>
+
+                    <div class="p-3 mb-3" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px;">
+                        <label class="form-label fw-bold small text-dark mb-2"><i class="bi bi-cash-coin me-1 text-success"></i> Modalidad de cobro presencial:</label>
+                        <div class="d-flex gap-3 flex-wrap">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="tipo_cobro" id="tipoCobroCompleto" value="completo" checked onchange="cambiarTipoCobroAdmin('completo')">
+                                <label class="form-check-label fw-semibold" for="tipoCobroCompleto">
+                                    Pago completo en mostrador <span class="badge bg-success-subtle text-success ms-1">Saldo S/ 0</span>
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="tipo_cobro" id="tipoCobroAdelanto" value="adelanto" onchange="cambiarTipoCobroAdmin('adelanto')">
+                                <label class="form-check-label fw-semibold" for="tipoCobroAdelanto">
+                                    Solo adelanto de S/ 20 <span class="badge bg-warning-subtle text-warning-emphasis ms-1">Deja saldo pendiente</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
                     <?php else: ?>
                     <h2 class="pago-h2"><span class="pago-num">1.</span> Realiza el pago del adelanto</h2>
-                    <p class="pago-text">Elige un método de pago y realiza el adelanto de S/ 20. Luego sube tu comprobante.</p>
+                    <p class="pago-text">Realiza el adelanto habitual de S/ 20 mediante Yape. Luego sube tu comprobante de pago.</p>
                     <?php endif; ?>
 
                     <input type="hidden" name="metodo_pago" id="metodo_pago" value="<?= htmlspecialchars($metodoIni) ?>">
@@ -194,28 +220,23 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
                             </button>
                         </div>
                         <div class="col-lg-4 col-md-4 col-sm-12">
+                            <button type="button" class="metodo-btn" id="btnNiubiz" onclick="elegirMetodo('niubiz')">
+                                <span class="bcp-logo" style="background:#005bb5;">POS</span>
+                                <span>Niubiz (POS)</span>
+                            </button>
+                        </div>
+                        <div class="col-lg-4 col-md-4 col-sm-12">
                             <button type="button" class="metodo-btn" id="btnYape" onclick="elegirMetodo('yape')">
                                 <span class="yape-logo">yape</span>
                                 <span>Yape</span>
                             </button>
                         </div>
-                        <div class="col-lg-4 col-md-4 col-sm-12">
-                            <button type="button" class="metodo-btn" id="btnBcp" onclick="elegirMetodo('bcp')">
-                                <span class="bcp-logo">›BCP›</span>
-                                <span>Transferencia</span>
-                            </button>
-                        </div>
                         <?php else: ?>
-                        <div class="col-lg-6 col-md-6 col-sm-12">
-                            <button type="button" class="metodo-btn active" id="btnYape" onclick="elegirMetodo('yape')">
+                        <div class="col-12">
+                            <button type="button" class="metodo-btn active" id="btnYape" onclick="elegirMetodo('yape')" style="cursor:default;">
                                 <span class="yape-logo">yape</span>
-                                <span>Yape</span>
-                            </button>
-                        </div>
-                        <div class="col-lg-6 col-md-6 col-sm-12">
-                            <button type="button" class="metodo-btn" id="btnBcp" onclick="elegirMetodo('bcp')">
-                                <span class="bcp-logo">›BCP›</span>
-                                <span>Transferencia</span>
+                                <span>Yape — Adelanto S/ 20</span>
+                                <span class="badge bg-success ms-auto"><i class="bi bi-shield-check me-1"></i> Oficial</span>
                             </button>
                         </div>
                         <?php endif; ?>
@@ -225,12 +246,23 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
                     <!-- Panel Efectivo (presencial) -->
                     <div class="pago-panel" id="panelEfectivo">
                         <div class="pago-importante" style="background:#eef7f0;">
-                            <div class="fw-bold mb-1"><span class="info-ico"><i class="bi bi-cash-stack"></i></span> Pago presencial en efectivo</div>
-                            <ul>
-                                <li>El administrador registra la reserva de forma <strong>presencial</strong>.</li>
-                                <li>Se realiza el <strong>pago completo</strong> (sin adelanto de S/ 20).</li>
-                                <li><strong>No requiere comprobante</strong> de pago.</li>
-                                <li>La reserva queda <strong>confirmada y verificada</strong> al guardar.</li>
+                            <div class="fw-bold mb-1"><span class="info-ico"><i class="bi bi-cash-stack"></i></span> Cobro presencial en efectivo</div>
+                            <ul class="mb-0">
+                                <li>El encargado recibe el dinero en efectivo en el mostrador.</li>
+                                <li>Se registra directamente a la caja del día sin comprobante obligatorio.</li>
+                                <li>La reserva queda <strong>confirmada y verificada</strong> en el sistema.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Panel Niubiz POS (presencial) -->
+                    <div class="pago-panel d-none" id="panelNiubiz">
+                        <div class="pago-importante" style="background:#f0f7ff; color:#1e3a8a;">
+                            <div class="fw-bold mb-1"><span class="info-ico" style="background:#005bb5;"><i class="bi bi-credit-card-2-front"></i></span> Cobro presencial con Niubiz POS</div>
+                            <ul class="mb-0">
+                                <li>El cliente paga mediante tarjeta de débito o crédito en el equipo POS físico de Top Gol.</li>
+                                <li>Ingreso registrado con método Niubiz para el cuadre de caja de POS.</li>
+                                <li>La reserva queda <strong>confirmada y verificada</strong> al registrarse.</li>
                             </ul>
                         </div>
                     </div>
@@ -248,7 +280,7 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
                             </div>
                             <div class="col-md-7">
                                 <div class="pago-numero-box">
-                                    <div class="fw-semibold small mb-2">También puedes pagar al número:</div>
+                                    <div class="fw-semibold small mb-2">También puedes yapear al número:</div>
                                     <div class="d-flex align-items-center gap-2 flex-wrap">
                                         <span class="tel-ico"><i class="bi bi-telephone-fill"></i></span>
                                         <strong class="tel-num">987 654 321</strong>
@@ -260,38 +292,13 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
                                 </div>
                                 <div class="pago-importante">
                                     <div class="fw-bold mb-1"><span class="info-ico"><i class="bi bi-info-lg"></i></span> Importante</div>
-                                    <ul>
-                                        <li>Realiza el pago por el monto del adelanto: <strong>S/ 20</strong></li>
-                                        <li>Incluye tu nombre en la descripción (opcional)</li>
-                                        <li>Luego sube tu comprobante en el formulario de abajo</li>
-                                        <li>Tu reserva se confirmará una vez verificado el pago</li>
+                                    <ul class="mb-0">
+                                        <li>Monto del adelanto: <strong>S/ 20</strong> por cancha reservada.</li>
+                                        <li>Luego de pagar, sube la captura de pantalla de tu constancia de Yape.</li>
+                                        <li>El encargado verificará el comprobante para confirmar tu reserva.</li>
                                     </ul>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- Panel BCP -->
-                    <div class="pago-panel d-none" id="panelBcp">
-                        <div class="pago-numero-box mb-3">
-                            <div class="fw-semibold small mb-2">Transfiere a nuestra cuenta BCP:</div>
-                            <div class="d-flex align-items-center gap-2 flex-wrap">
-                                <span class="tel-ico"><i class="bi bi-bank"></i></span>
-                                <strong class="tel-num" style="font-size:1rem;">CCI: 002-123-456789-12</strong>
-                                <button type="button" class="btn-copiar" onclick="copiarNumero('00212345678912', this)">
-                                    <i class="bi bi-copy"></i> Copiar
-                                </button>
-                            </div>
-                            <div class="small mt-2">Titular: <strong>Top Gol Tacna S.A.C.</strong></div>
-                        </div>
-                        <div class="pago-importante">
-                            <div class="fw-bold mb-1"><span class="info-ico"><i class="bi bi-info-lg"></i></span> Importante</div>
-                            <ul>
-                                <li>Realiza la transferencia por el monto del adelanto: <strong>S/ 20</strong></li>
-                                <li>Guarda la constancia de la operación</li>
-                                <li>Luego sube tu comprobante en el formulario de abajo</li>
-                                <li>Tu reserva se confirmará una vez verificado el pago</li>
-                            </ul>
                         </div>
                     </div>
                 </div>
@@ -312,9 +319,16 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
                     <div class="invalid-feedback d-none" id="fileError">Archivo no válido. Usa JPG, PNG o PDF de máximo 5MB.</div>
                 </div>
 
-                <button type="submit" class="btn-enviar mt-2">
-                    <i class="bi bi-send me-2"></i> Realizar Reserva
-                </button>
+                <div class="d-flex gap-2 mt-2">
+                    <?php if (!$esAdminView): ?>
+                    <a href="<?= url('/reserva/formulario/' . $idSeleccionado) ?>?fecha=<?= urlencode($fechaPre) ?>&horario=<?= urlencode($horaPre) ?>&duracion=<?= urlencode($_GET['duracion'] ?? (string)$duracionIni) ?>&celular=<?= urlencode($_GET['celular'] ?? '') ?>&observaciones=<?= urlencode($_GET['observaciones'] ?? '') ?>&nombre_cliente=<?= urlencode($_GET['nombre_cliente'] ?? '') ?>" class="btn btn-outline-secondary p-3 fw-bold flex-grow-1" style="border-radius:10px; width:50%;">
+                        <i class="bi bi-arrow-left me-2"></i> Volver a editar reserva
+                    </a>
+                    <?php endif; ?>
+                    <button type="submit" class="btn-enviar flex-grow-1" style="<?= !$esAdminView ? 'width:50%; margin:0;' : 'margin-top:0;' ?>">
+                        <i class="bi bi-send me-2"></i> Realizar Reserva
+                    </button>
+                </div>
             </form>
         </div>
 
@@ -480,30 +494,40 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
 <script>
 var ES_ADMIN = <?= $esAdminView ? 'true' : 'false' ?>;
 var actualizarResumenGlobal = null;
+var tipoCobroAdminActual = 'completo';
+
+function cambiarTipoCobroAdmin(tipo) {
+    tipoCobroAdminActual = tipo;
+    if (typeof actualizarResumenGlobal === 'function') actualizarResumenGlobal();
+}
+
 function elegirMetodo(m) {
     var esEfectivo = m === 'efectivo';
+    var esNiubiz = m === 'niubiz';
     var esYape = m === 'yape';
-    var esBcp = m === 'bcp' || m === 'transferencia_bcp';
     var btnEfe = document.getElementById('btnEfectivo');
+    var btnNiu = document.getElementById('btnNiubiz');
     var btnYape = document.getElementById('btnYape');
-    var btnBcp = document.getElementById('btnBcp');
     var pEfe = document.getElementById('panelEfectivo');
+    var pNiu = document.getElementById('panelNiubiz');
     var pYape = document.getElementById('panelYape');
-    var pBcp = document.getElementById('panelBcp');
     var secComp = document.getElementById('seccionComprobante');
+
     if(btnEfe) btnEfe.classList.toggle('active', esEfectivo);
+    if(btnNiu) btnNiu.classList.toggle('active', esNiubiz);
     if(btnYape) btnYape.classList.toggle('active', esYape);
-    if(btnBcp) btnBcp.classList.toggle('active', esBcp);
+
     if(pEfe) pEfe.classList.toggle('d-none', !esEfectivo);
+    if(pNiu) pNiu.classList.toggle('d-none', !esNiubiz);
     if(pYape) pYape.classList.toggle('d-none', !esYape);
-    if(pBcp) pBcp.classList.toggle('d-none', !esBcp);
-    document.getElementById('metodo_pago').value = esEfectivo ? 'efectivo' : (esYape ? 'yape' : 'transferencia_bcp');
+
+    document.getElementById('metodo_pago').value = m;
+
     if(ES_ADMIN && secComp){
-        var ocultar = esEfectivo;
+        var ocultar = esEfectivo || esNiubiz;
         secComp.classList.toggle('d-none', ocultar);
         secComp.style.display = ocultar ? 'none' : '';
     }
-    // actualizar resumen para reflejar pago completo vs adelanto
     if(typeof actualizarResumenGlobal === 'function') actualizarResumenGlobal();
 }
 
@@ -603,10 +627,9 @@ function copiarNumero(num, btn) {
         const cap = data ? data.capacidad : '';
         const dur = parseFloat((selDur && selDur.value) ? selDur.value : '1');
         const total = precio * dur;
-        var metodoActual = document.getElementById('metodo_pago') ? document.getElementById('metodo_pago').value : 'yape';
-        var esEfectivoActual = ES_ADMIN && metodoActual === 'efectivo';
-        const saldo = esEfectivoActual ? 0 : Math.max(0, total - 20);
-        const adelanto = esEfectivoActual ? total : 20;
+        var esCompletoAdmin = ES_ADMIN && tipoCobroAdminActual === 'completo';
+        const saldo = esCompletoAdmin ? 0 : Math.max(0, total - 20);
+        const adelanto = esCompletoAdmin ? total : Math.min(total, 20);
 
         if (nombre) document.getElementById('resCanchaNombre').textContent = nombre.toUpperCase();
         if (tipo) document.getElementById('resCanchaTipo').textContent = tipo + ' - Césped sintético';
@@ -632,7 +655,7 @@ function copiarNumero(num, btn) {
         var adelantoRow = document.querySelector('.resumen-pago .rp-row.verde strong');
         if(adelantoRow) adelantoRow.textContent = 'S/ ' + adelanto.toFixed(0);
         var adelantoLbl = document.querySelector('.resumen-pago .rp-row.verde span');
-        if(adelantoLbl) adelantoLbl.textContent = esEfectivoActual ? 'Pago completo (hoy)' : 'Adelanto requerido (hoy)';
+        if(adelantoLbl) adelantoLbl.textContent = esCompletoAdmin ? 'Cobro completo en mostrador' : 'Adelanto requerido (hoy)';
     }
     actualizarResumenGlobal = actualizarResumen;
 

@@ -21,17 +21,17 @@ abstract class Controller {
      * @param bool $conLayout Determina si se incluye el header y footer común
      */
     protected function view(string $vista, array $datos = [], bool $conLayout = true): void {
-        // Extraer variables para hacerlas accesibles directamente en la vista
-        extract($datos);
+        $_archivoVista_ = VIEWS_PATH . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $vista) . '.php';
 
-        $archivoVista = VIEWS_PATH . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $vista) . '.php';
-
-        if (!file_exists($archivoVista)) {
+        if (!file_exists($_archivoVista_)) {
             die("<div style='font-family:sans-serif;padding:20px;background:#fee2e2;color:#991b1b;margin:30px;border-radius:6px;'>
                 <h3>Error: Vista no encontrada</h3>
-                <p>No se pudo localizar el archivo de la vista: <code>{$archivoVista}</code></p>
+                <p>No se pudo localizar el archivo de la vista: <code>{$_archivoVista_}</code></p>
             </div>");
         }
+
+        // Extraer variables para hacerlas accesibles directamente en la vista
+        extract($datos);
 
         if ($conLayout) {
             $header = VIEWS_PATH . DIRECTORY_SEPARATOR . 'layout' . DIRECTORY_SEPARATOR . 'header.php';
@@ -40,12 +40,12 @@ abstract class Controller {
             if (file_exists($header)) {
                 require_once $header;
             }
-            require $archivoVista;
+            require $_archivoVista_;
             if (file_exists($footer)) {
                 require_once $footer;
             }
         } else {
-            require $archivoVista;
+            require $_archivoVista_;
         }
     }
 
@@ -129,5 +129,13 @@ abstract class Controller {
             }
         }
         return $sanitizado;
+    }
+
+    /**
+     * Determina si la petición actual es AJAX o espera respuesta JSON
+     */
+    protected function isAjax(): bool {
+        return (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower((string)$_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
+            || (isset($_SERVER['HTTP_ACCEPT']) && str_contains((string)$_SERVER['HTTP_ACCEPT'], 'application/json'));
     }
 }

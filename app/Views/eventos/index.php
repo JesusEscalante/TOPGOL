@@ -45,16 +45,16 @@
             </div>
         </div>
         <div class="col-md-4">
-            <div style="position:relative; height:180px; border-radius:14px; overflow:hidden; background:url('https://images.unsplash.com/photo-1546519638-68e109498ffc?w=600&q=80&fit=crop') center/cover;">
+            <a href="<?= url('/cumpleanos/solicitar') ?>" style="display:block; position:relative; height:180px; border-radius:14px; overflow:hidden; background:url('https://images.unsplash.com/photo-1530103862676-de8892bf3099?w=600&q=80&fit=crop') center/cover; text-decoration:none;">
                 <span style="position:absolute; inset:0; background:linear-gradient(to top, rgba(0,0,0,.65), transparent);"></span>
-                <span style="position:absolute; left:14px; bottom:12px; color:#fff; font-weight:800; font-size:1.05rem; text-shadow:0 1px 4px rgba(0,0,0,.6);"><i class="bi bi-basket me-1"></i> Básquet</span>
-            </div>
+                <span style="position:absolute; left:14px; bottom:12px; color:#fff; font-weight:800; font-size:1.05rem; text-shadow:0 1px 4px rgba(0,0,0,.6);"><i class="bi bi-balloon me-1"></i> Cumpleaños / Reuniones</span>
+            </a>
         </div>
         <div class="col-md-4">
-            <div style="position:relative; height:180px; border-radius:14px; overflow:hidden; background:url('https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=600&q=80&fit=crop') center/cover;">
+            <a href="<?= url('/cumpleanos/solicitar') ?>" style="display:block; position:relative; height:180px; border-radius:14px; overflow:hidden; background:url('https://images.unsplash.com/photo-1491438590914-bc09fcaaf77a?w=600&q=80&fit=crop') center/cover; text-decoration:none;">
                 <span style="position:absolute; inset:0; background:linear-gradient(to top, rgba(0,0,0,.65), transparent);"></span>
-                <span style="position:absolute; left:14px; bottom:12px; color:#fff; font-weight:800; font-size:1.05rem; text-shadow:0 1px 4px rgba(0,0,0,.6);"><i class="bi bi-volleyball me-1"></i> Vóley</span>
-            </div>
+                <span style="position:absolute; left:14px; bottom:12px; color:#fff; font-weight:800; font-size:1.05rem; text-shadow:0 1px 4px rgba(0,0,0,.6);"><i class="bi bi-box me-1"></i> Alquiler de Espacio</span>
+            </a>
         </div>
     </div>
 
@@ -65,7 +65,7 @@
                 <h5 class="fw-bold" style="font-size:1rem;">Colegios</h5>
                 <p style="font-size:.82rem; color:var(--tg-gray); line-height:1.6;">Inter-escolares, olimpiadas, clausuras y campeonatos por categorías. Múltiples canchas en paralelo para jornadas completas.</p>
                 <ul style="font-size:.78rem; color:#334155; padding-left:18px; margin:0; line-height:1.8;">
-                    <li>Fútbol 5, 7 y 11</li>
+                    <li>Todas las comodidades para tu evento deportivo</li>
                     <li>Hasta 22 jugadores por cancha</li>
                     <li>Graderías</li>
                 </ul>

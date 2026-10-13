@@ -40,17 +40,25 @@ $tipoLabels = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11'
                     <input type="date" class="form-control" id="fecha" name="fecha" min="<?= $hoyStr ?>" value="<?= $hoyStr ?>" required>
                 </div>
                 <div class="col-md-4">
-                    <label for="hora" class="form-label fw-semibold small">Hora <span class="text-danger">*</span></label>
-                    <select class="form-select" id="hora" name="hora" required>
-                        <option value="">--:--</option>
-                        <?php
-                        for ($h = 7; $h <= 23; $h++):
-                            foreach (['00','30'] as $mm):
-                                $hs = sprintf('%02d:%s', $h, $mm);
-                        ?>
-                            <option value="<?= $hs ?>"><?= date('g:i A', strtotime($hs)) ?></option>
-                        <?php endforeach; endfor; ?>
-                    </select>
+                    <label class="form-label fw-semibold small">Hora <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <select class="form-select" id="horaVal" style="border-right:none;" required>
+                            <option value="">HH</option>
+                            <?php for($h=7;$h<=23;$h++): $hs=sprintf('%02d',$h); ?>
+                                <option value="<?= $hs ?>"><?= $hs ?></option>
+                            <?php endfor; ?>
+                        </select>
+                        <span class="input-group-text bg-white border-start-0 border-end-0 px-1">:</span>
+                        <select class="form-select" id="minVal" style="border-left:none;" required>
+                            <option value="00">00</option>
+                            <option value="10">10</option>
+                            <option value="20">20</option>
+                            <option value="30">30</option>
+                            <option value="40">40</option>
+                            <option value="50">50</option>
+                        </select>
+                        <input type="hidden" name="hora" id="hora" value="">
+                    </div>
                     <small class="text-muted d-none" id="sinHorariosHoy">Por hoy ya no quedan horarios.</small>
                 </div>
                 <div class="col-md-4">
@@ -109,10 +117,9 @@ $tipoLabels = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11'
                             <span style="display:flex; align-items:center; gap:10px;">
                                 <input type="checkbox" name="canchas_ids[]" value="<?= $tid ?>" class="chk-cancha" data-precio="<?= $c['precio_hora'] ?>" data-nombre="<?= htmlspecialchars($c['nombre']) ?>" style="width:18px;height:18px;">
                                 <strong style="font-size:.9rem;"><?= htmlspecialchars($c['nombre']) ?></strong>
-                                <span class="badge bg-light text-dark border" style="font-size:.68rem;"><?= htmlspecialchars($tipoLabels[$c['tipo']] ?? $c['tipo']) ?></span>
                                 <span class="ms-auto fw-bold" style="color:#1a7a3a; font-size:.85rem;">S/ <?= number_format((float)$c['precio_hora'], 0) ?>/h</span>
                             </span>
-                            <span class="text-muted" style="font-size:.72rem; margin-left:28px;">Cap. <?= (int)$c['capacidad'] ?> · <?= !empty($c['techada']) ? 'Techada' : 'Aire libre' ?></span>
+                            <span class="text-muted" style="font-size:.72rem; margin-left:28px;"><?= !empty($c['techada']) ? 'Techada' : 'Aire libre' ?></span>
                         </label>
                     </div>
                 <?php endforeach; ?>
@@ -122,48 +129,95 @@ $tipoLabels = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11'
         <!-- Pago -->
         <div class="pago-card mb-3">
             <?php if ($esAdminView): ?>
-                <h2 class="pago-h2">Método de pago</h2>
-                <p class="pago-text">Presencial: efectivo paga completo sin comprobante. Yape/BCP con adelanto por cancha.</p>
+                <h2 class="pago-h2">Cobro y método de pago</h2>
+                <p class="pago-text">Reserva presencial de evento: selecciona modalidad de cobro y método de pago.</p>
+
+                <div class="p-3 mb-3" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px;">
+                    <label class="form-label fw-bold small text-dark mb-2"><i class="bi bi-cash-coin me-1 text-success"></i> Modalidad de cobro presencial:</label>
+                    <div class="d-flex gap-3 flex-wrap">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="tipo_cobro" id="tipoCobroEvtCompleto" value="completo" checked onchange="cambiarTipoCobroEvt('completo')">
+                            <label class="form-check-label fw-semibold" for="tipoCobroEvtCompleto">
+                                Pago completo en mostrador <span class="badge bg-success-subtle text-success ms-1">Saldo S/ 0</span>
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="tipo_cobro" id="tipoCobroEvtAdelanto" value="adelanto" onchange="cambiarTipoCobroEvt('adelanto')">
+                            <label class="form-check-label fw-semibold" for="tipoCobroEvtAdelanto">
+                                Adelanto de S/ 20 por cancha <span class="badge bg-warning-subtle text-warning-emphasis ms-1">Deja saldo pendiente</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
             <?php else: ?>
                 <h2 class="pago-h2">Pago del adelanto</h2>
-                <p class="pago-text">Adelanto <strong>S/ 20 por cancha</strong>. Elige método y sube tu comprobante.</p>
+                <p class="pago-text">Adelanto habitual de <strong>S/ 20 por cada cancha</strong> seleccionada mediante Yape. Luego sube tu comprobante.</p>
             <?php endif; ?>
 
             <input type="hidden" name="metodo_pago" id="metodo_pago" value="<?= $esAdminView ? 'efectivo' : 'yape' ?>">
             <div class="row g-2 mb-3">
                 <?php if ($esAdminView): ?>
                     <div class="col-4"><button type="button" class="metodo-btn active" id="btnEfectivo" onclick="elegirMetodoEvt('efectivo')"><span class="bcp-logo" style="background:#1a7a3a;">S/</span> Efectivo</button></div>
+                    <div class="col-4"><button type="button" class="metodo-btn" id="btnNiubiz" onclick="elegirMetodoEvt('niubiz')"><span class="bcp-logo" style="background:#005bb5;">POS</span> Niubiz (POS)</button></div>
                     <div class="col-4"><button type="button" class="metodo-btn" id="btnYape" onclick="elegirMetodoEvt('yape')"><span class="yape-logo">yape</span> Yape</button></div>
-                    <div class="col-4"><button type="button" class="metodo-btn" id="btnBcp" onclick="elegirMetodoEvt('bcp')"><span class="bcp-logo">›BCP›</span> BCP</button></div>
                 <?php else: ?>
-                    <div class="col-6"><button type="button" class="metodo-btn active" id="btnYape" onclick="elegirMetodoEvt('yape')"><span class="yape-logo">yape</span> Yape</button></div>
-                    <div class="col-6"><button type="button" class="metodo-btn" id="btnBcp" onclick="elegirMetodoEvt('bcp')"><span class="bcp-logo">›BCP›</span> BCP</button></div>
+                    <div class="col-12"><button type="button" class="metodo-btn active" id="btnYape" onclick="elegirMetodoEvt('yape')" style="cursor:default;"><span class="yape-logo">yape</span> Yape — Adelanto S/ 20 por cancha</button></div>
                 <?php endif; ?>
             </div>
 
             <?php if ($esAdminView): ?>
                 <div class="pago-panel" id="panelEfectivo">
                     <div class="pago-importante" style="background:#eef7f0;">
-                        <div class="fw-bold mb-1"><i class="bi bi-cash-stack me-1"></i> Pago presencial en efectivo</div>
-                        <ul><li>Pago <strong>completo</strong> por cancha, sin adelanto.</li><li>No requiere comprobante.</li></ul>
+                        <div class="fw-bold mb-1"><i class="bi bi-cash-stack me-1"></i> Cobro presencial en efectivo</div>
+                        <ul class="mb-0">
+                            <li>El encargado recibe el dinero en efectivo en el mostrador.</li>
+                            <li>Ingreso verificado inmediatamente en caja diaria. Sin comprobante obligatorio.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="pago-panel d-none" id="panelNiubiz">
+                    <div class="pago-importante" style="background:#f0f7ff; color:#1e3a8a;">
+                        <div class="fw-bold mb-1"><i class="bi bi-credit-card-2-front me-1" style="color:#005bb5;"></i> Cobro presencial con Niubiz POS</div>
+                        <ul class="mb-0">
+                            <li>Cobro realizado a través del equipo POS físico de Top Gol.</li>
+                            <li>Ingreso registrado bajo método Niubiz para el cuadre de caja de tarjetas.</li>
+                        </ul>
                     </div>
                 </div>
             <?php endif; ?>
+
             <div class="pago-panel <?= $esAdminView ? 'd-none' : '' ?>" id="panelYape">
                 <div class="row g-3">
                     <div class="col-md-5 text-center">
                         <div class="qr-title">Escanea el código QR con Yape</div>
-                        <div class="qr-wrap"><img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=YAPE-TOPGOL-TACNA-987654321" alt="QR Yape" width="160" height="160"><span class="qr-logo">yape</span></div>
+                        <div class="qr-wrap">
+                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=YAPE-TOPGOL-TACNA-987654321-EVENTO" alt="QR Yape Top Gol" width="180" height="180">
+                            <span class="qr-logo">yape</span>
+                        </div>
                     </div>
                     <div class="col-md-7">
-                        <div class="pago-numero-box"><div class="fw-semibold small mb-1">Paga al número:</div><strong class="tel-num">987 654 321</strong> <button type="button" class="btn-copiar" onclick="copiarNumero('987654321', this)"><i class="bi bi-copy"></i> Copiar</button><div class="small mt-1">Titular: <strong>Top Gol Tacna S.A.C.</strong></div></div>
-                        <div class="pago-importante"><div class="fw-bold mb-1"><span class="info-ico"><i class="bi bi-info-lg"></i></span> Importante</div><ul><li>Adelanto: <strong>S/ 20 x cancha</strong></li><li>Incluye tu nombre en la descripción</li></ul></div>
+                        <div class="pago-numero-box">
+                            <div class="fw-semibold small mb-2">También puedes yapear al número:</div>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <span class="tel-ico"><i class="bi bi-telephone-fill"></i></span>
+                                <strong class="tel-num">987 654 321</strong>
+                                <button type="button" class="btn-copiar" onclick="copiarNumero('987654321', this)">
+                                    <i class="bi bi-copy"></i> Copiar
+                                </button>
+                            </div>
+                            <div class="small mt-2">Titular: <strong>Top Gol Tacna S.A.C.</strong></div>
+                        </div>
+                        <div class="pago-importante">
+                            <div class="fw-bold mb-1"><span class="info-ico"><i class="bi bi-info-lg"></i></span> Importante</div>
+                            <ul class="mb-0">
+                                <li>Monto del adelanto: <strong>S/ 20 por cada cancha</strong> reservada.</li>
+                                <li>Sube tu constancia de pago de Yape en el formulario de abajo.</li>
+                                <li>El encargado verificará el pago para confirmar tu evento.</li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="pago-panel d-none" id="panelBcp">
-                <div class="pago-numero-box"><strong class="tel-num" style="font-size:.95rem;">CCI: 002-123-456789-12</strong> <button type="button" class="btn-copiar" onclick="copiarNumero('00212345678912', this)"><i class="bi bi-copy"></i> Copiar</button><div class="small mt-1">Titular: <strong>Top Gol Tacna S.A.C.</strong></div></div>
-                <div class="pago-importante"><div class="fw-bold mb-1"><span class="info-ico"><i class="bi bi-info-lg"></i></span> Importante</div><ul><li>Adelanto: <strong>S/ 20 x cancha</strong></li><li>Guarda tu constancia</li></ul></div>
             </div>
         </div>
 
@@ -255,26 +309,36 @@ $tipoLabels = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11'
 .resumen-alerta small { color:#7c6a3a; font-size:.78rem; }
 </style>
 
-<script>
 var ES_ADMIN_EVT = <?= $esAdminView ? 'true' : 'false' ?>;
+var tipoCobroEvtActual = 'completo';
+
+function cambiarTipoCobroEvt(tipo) {
+    tipoCobroEvtActual = tipo;
+    if (typeof window.actualizarEvtResumen === 'function') window.actualizarEvtResumen();
+}
+
 function elegirMetodoEvt(m){
-    var esEfe = m==='efectivo', esYape=m==='yape', esBcp=m==='bcp' || m==='transferencia_bcp';
-    var bE=document.getElementById('btnEfectivo'), bY=document.getElementById('btnYape'), bB=document.getElementById('btnBcp');
-    var pE=document.getElementById('panelEfectivo'), pY=document.getElementById('panelYape'), pB=document.getElementById('panelBcp');
-    var sec=document.getElementById('seccionComprobante');
+    var esEfe = m === 'efectivo', esNiu = m === 'niubiz', esYape = m === 'yape';
+    var bE = document.getElementById('btnEfectivo'), bN = document.getElementById('btnNiubiz'), bY = document.getElementById('btnYape');
+    var pE = document.getElementById('panelEfectivo'), pN = document.getElementById('panelNiubiz'), pY = document.getElementById('panelYape');
+    var sec = document.getElementById('seccionComprobante');
+
     if(bE) bE.classList.toggle('active', esEfe);
+    if(bN) bN.classList.toggle('active', esNiu);
     if(bY) bY.classList.toggle('active', esYape);
-    if(bB) bB.classList.toggle('active', esBcp);
+
     if(pE) pE.classList.toggle('d-none', !esEfe);
+    if(pN) pN.classList.toggle('d-none', !esNiu);
     if(pY) pY.classList.toggle('d-none', !esYape);
-    if(pB) pB.classList.toggle('d-none', !esBcp);
-    document.getElementById('metodo_pago').value = esEfe ? 'efectivo' : (esYape ? 'yape' : 'transferencia_bcp');
+
+    document.getElementById('metodo_pago').value = m;
+
     if(ES_ADMIN_EVT && sec){
-        var ocultar = esEfe;
+        var ocultar = esEfe || esNiu;
         sec.classList.toggle('d-none', ocultar);
         sec.style.display = ocultar ? 'none' : '';
     }
-    actualizarEvtResumen();
+    if (typeof window.actualizarEvtResumen === 'function') window.actualizarEvtResumen();
 }
 function copiarNumero(num, btn){
     var done=function(){ var o=btn.innerHTML; btn.innerHTML='<i class="bi bi-check-lg"></i> Copiado'; setTimeout(function(){ btn.innerHTML=o; },1500); };
@@ -305,32 +369,49 @@ function copiarNumero(num, btn){
     }
 
     // Actualizar resumen al seleccionar canchas
-    var checks=document.querySelectorAll('.chk-cancha');
-    checks.forEach(function(chk){
-        chk.addEventListener('change', function(){ actualizarEvtResumen(); });
+    document.addEventListener('change', function(e) {
+        if (e.target && e.target.classList && e.target.classList.contains('chk-cancha')) {
+            window.actualizarEvtResumen();
+        }
     });
 
     // Filtrar horas pasadas si fecha es hoy (único horario)
-    var selHoraEvt=document.getElementById('hora');
+    var selHoraValEvt=document.getElementById('horaVal');
+    var selMinValEvt=document.getElementById('minVal');
+    var selHoraEvt=document.getElementById('hora'); // Hidden input
     var selDurEvt=document.getElementById('duracion');
+
+    function actualizarInputHora() {
+        if (selHoraValEvt && selMinValEvt && selHoraEvt) {
+            if (selHoraValEvt.value && selMinValEvt.value) {
+                selHoraEvt.value = selHoraValEvt.value + ':' + selMinValEvt.value;
+            } else {
+                selHoraEvt.value = '';
+            }
+        }
+    }
+
     function filtrarHorasEvt(){
-        if(!selHoraEvt) return;
+        if(!selHoraValEvt) return;
         var esHoy = fecha.value === hoyStr;
         var visibles=0;
-        Array.from(selHoraEvt.options).forEach(function(o){
+        Array.from(selHoraValEvt.options).forEach(function(o){
             if(!o.value) return;
-            var h=parseInt(o.value.slice(0,2),10);
+            var h=parseInt(o.value,10);
             var oculta = esHoy && h < horaMinHoy;
             o.hidden=oculta; o.disabled=oculta;
             if(!oculta) visibles++;
-            if(oculta && o.selected) selHoraEvt.value='';
+            if(oculta && o.selected) selHoraValEvt.value='';
         });
         var aviso=document.getElementById('sinHorariosHoy');
         if(aviso) aviso.classList.toggle('d-none', !(esHoy && visibles===0));
+        actualizarInputHora();
     }
-    fecha.addEventListener('change', function(){ filtrarHorasEvt(); actualizarEvtResumen(); });
-    if(selHoraEvt) selHoraEvt.addEventListener('change', actualizarEvtResumen);
-    if(selDurEvt) selDurEvt.addEventListener('change', actualizarEvtResumen);
+
+    fecha.addEventListener('change', function(){ filtrarHorasEvt(); window.actualizarEvtResumen(); });
+    if(selHoraValEvt) selHoraValEvt.addEventListener('change', function(){ actualizarInputHora(); window.actualizarEvtResumen(); });
+    if(selMinValEvt) selMinValEvt.addEventListener('change', function(){ actualizarInputHora(); window.actualizarEvtResumen(); });
+    if(selDurEvt) selDurEvt.addEventListener('change', window.actualizarEvtResumen);
     filtrarHorasEvt();
 
     window.actualizarEvtResumen = function(){
@@ -339,29 +420,28 @@ function copiarNumero(num, btn){
         var total=0;
         var listaHtml='';
         var horaVal = selHoraEvt ? selHoraEvt.value : '';
-        var durVal = selDurEvt ? parseInt(selDurEvt.value||'1',10) : 1;
+        var durVal = selDurEvt ? parseFloat(selDurEvt.value||'1') : 1;
         if(!horaVal) horaVal='--:--';
         sel.forEach(function(chk){
             var precio=parseFloat(chk.getAttribute('data-precio')||'0');
             var nombre=chk.getAttribute('data-nombre')||'';
             var sub=precio*durVal;
             total+=sub;
-            var dLbl2 = durVal==0.5 ? '30m' : (durVal==1 ? '1h' : durVal+'h');
+            var dLbl2 = durVal==0.5 ? '30m' : (durVal==1 ? '1h' : (durVal==1.5 ? '1h 30m' : durVal+'h'));
             listaHtml += '<div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #eef2f7;"><span>'+nombre+' ('+horaVal+' · '+dLbl2+')</span><strong>S/ '+sub.toFixed(0)+'</strong></div>';
         });
         if(sel.length===0) listaHtml='<span class="text-muted">Selecciona al menos una cancha.</span>';
         document.getElementById('resumenLista').innerHTML = listaHtml;
-        var metodo=document.getElementById('metodo_pago').value;
-        var esEfe = ES_ADMIN_EVT && metodo==='efectivo';
-        var adelanto = esEfe ? total : (sel.length * 20);
+        var esCompletoAdmin = ES_ADMIN_EVT && tipoCobroEvtActual === 'completo';
+        var adelanto = esCompletoAdmin ? total : (sel.length * 20);
         var saldo = Math.max(0, total - adelanto);
         document.getElementById('resTotal').textContent='S/ '+total.toFixed(0);
         document.getElementById('resAdelanto').textContent='S/ '+adelanto.toFixed(0);
         document.getElementById('resSaldo').textContent='S/ '+saldo.toFixed(0);
         document.getElementById('resCanchas').textContent=String(sel.length);
-        document.getElementById('resAdelantoLbl').textContent = esEfe ? 'Pago completo (hoy)' : 'Adelanto requerido (hoy) · S/ 20 x cancha';
-        document.getElementById('resAlertaTitle').textContent = esEfe ? 'Pago presencial' : 'Pago en revisión';
-        document.getElementById('resAlertaText').textContent = esEfe ? 'Reserva verificada al registrarse. Pago completo en sitio.' : 'Hemos recibido tu comprobante. Te notificaremos cuando se confirme tu pago.';
+        document.getElementById('resAdelantoLbl').textContent = esCompletoAdmin ? 'Cobro completo en mostrador' : 'Adelanto requerido (hoy) · S/ 20 x cancha';
+        document.getElementById('resAlertaTitle').textContent = esCompletoAdmin ? 'Cobro presencial en mostrador' : 'Pago del evento';
+        document.getElementById('resAlertaText').textContent = esCompletoAdmin ? 'Reserva verificada al registrarse. Cobro completo en sitio.' : 'Adelanto de S/ 20 por cada cancha. Saldo a cancelar al llegar.';
     };
     // init
     window.actualizarEvtResumen();

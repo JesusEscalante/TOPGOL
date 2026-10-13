@@ -40,6 +40,12 @@ class Notificacion extends Model {
         return $this->execute($sql, [$usuarioId]);
     }
 
+    /** Obtiene notificaciones nuevas desde un id determinado */
+    public function obtenerNuevasDesde(int $usuarioId, int $lastId): array {
+        $sql = "SELECT * FROM {$this->tabla} WHERE usuario_id = ? AND id > ? ORDER BY id ASC";
+        return $this->select($sql, [$usuarioId, $lastId]);
+    }
+
     /** Crea notificación para todos los admins */
     public function notificarAdmins(string $tipo, string $titulo, string $mensaje, ?string $link = null): void {
         $admins = $this->select("SELECT id FROM usuarios WHERE rol = 'admin'");

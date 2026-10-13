@@ -10,7 +10,8 @@ $horaMinHoy = max(7, (int)date('H') + 1);
 
 $canchaIni = $canchaSeleccionada ?? ($canchas[0] ?? null);
 $precioHoraIni = (float)($canchaIni['precio_hora'] ?? 60);
-$duracionIni = 1;
+$duracionMinutos = (int)($_GET['duracion'] ?? 60);
+$duracionIni = $duracionMinutos > 0 ? $duracionMinutos / 60 : 1;
 $totalIni = $precioHoraIni * $duracionIni;
 
 $tipoLabels = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11' => 'Fútbol 11'];
@@ -18,9 +19,9 @@ $capacidadIni = (int)($canchaIni['capacidad'] ?? 8);
 $tipoIni = $tipoLabels[$canchaIni['tipo'] ?? ''] ?? 'Fútbol 5';
 
 $usuarioActual = currentUser();
-$nombreActual = (string)($usuarioActual['nombre'] ?? '');
+$nombreActual = $_GET['nombre_cliente'] ?? (string)($usuarioActual['nombre'] ?? '');
 $emailActual = (string)($usuarioActual['email'] ?? '');
-$telActual = preg_replace('/^\+51\s*/', '', (string)($usuarioActual['telefono'] ?? ''));
+$telActual = preg_replace('/^\+51\s*/', '', $_GET['celular'] ?? (string)($usuarioActual['telefono'] ?? ''));
 ?>
 
 <div class="container py-3 pago-page">
@@ -55,11 +56,9 @@ $telActual = preg_replace('/^\+51\s*/', '', (string)($usuarioActual['telefono'] 
                         <img src="<?= $canchaIni ? 'https://images.unsplash.com/photo-1522778119026-d647f0596c20?w=200&q=80&fit=crop' : 'https://images.unsplash.com/photo-1553778263-73a83bab9b0c?w=200&q=80&fit=crop' ?>" alt="Cancha" style="width:96px; height:72px; object-fit:cover; border-radius:8px; flex-shrink:0;">
                         <div style="flex:1; min-width:0;">
                             <strong style="font-size:.95rem; display:block;"><?= htmlspecialchars($canchaIni['nombre'] ?? 'Cancha 1') ?></strong>
-                            <small style="color:#5b6b82; font-size:.78rem;"><?= htmlspecialchars($tipoIni) ?> - Césped sintético</small>
+                            <small style="color:#5b6b82; font-size:.78rem;"><?= htmlspecialchars($tipoIni) ?> - Características por confirmar</small>
                             <div style="display:flex; gap:12px; font-size:.72rem; color:#5b6b82; margin-top:4px;">
                                 <span><i class="bi bi-geo-alt-fill me-1"></i>Tacna</span>
-                                <span><i class="bi bi-lightbulb-fill me-1"></i>Iluminación LED</span>
-                                <span><i class="bi bi-door-open-fill me-1"></i>Camerinos</span>
                             </div>
                         </div>
                         <span class="pill ok" style="font-size:.68rem; white-space:nowrap;"><i class="bi bi-check-circle-fill me-1"></i>Disponible</span>
@@ -96,19 +95,33 @@ $telActual = preg_replace('/^\+51\s*/', '', (string)($usuarioActual['telefono'] 
                             <label class="form-label fw-semibold small">Hora <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <span class="input-group-text" style="background:#f8fafc;"><i class="bi bi-clock"></i></span>
-                                <select class="form-select" name="horario" id="horaSel" required>
-                                    <option value="">--:--</option>
-                                    <?php for($h=7;$h<=23;$h++): foreach(['00','30'] as $mm): $hs=sprintf('%02d:%s',$h,$mm); if($esHoy){ $tsSlot=strtotime($hs); $tsMin=strtotime(sprintf('%02d:00',$horaMinHoy)); if($tsSlot < $tsMin) continue; } ?>
-                                        <option value="<?= $hs ?>" <?= $horaPre===$hs?'selected':'' ?>><?= date('g:i A', strtotime($hs)) ?></option>
-                                    <?php endforeach; endfor; ?>
+                                <?php
+                                $hPre = $horaPre ? explode(':', $horaPre)[0] : '';
+                                $mPre = $horaPre ? explode(':', $horaPre)[1] : '';
+                                ?>
+                                <select class="form-select" id="horaVal" style="border-right:none;" required>
+                                    <option value="">HH</option>
+                                    <?php for($h=7;$h<=22;$h++): $hs=sprintf('%02d',$h); ?>
+                                        <option value="<?= $hs ?>" <?= $hPre===$hs?'selected':'' ?>><?= $hs ?></option>
+                                    <?php endfor; ?>
                                 </select>
+                                <span class="input-group-text bg-white border-start-0 border-end-0 px-1">:</span>
+                                <select class="form-select" id="minVal" style="border-left:none;" required>
+                                    <option value="00" <?= $mPre==='00'?'selected':'' ?>>00</option>
+                                    <option value="10" <?= $mPre==='10'?'selected':'' ?>>10</option>
+                                    <option value="20" <?= $mPre==='20'?'selected':'' ?>>20</option>
+                                    <option value="30" <?= $mPre==='30'?'selected':'' ?>>30</option>
+                                    <option value="40" <?= $mPre==='40'?'selected':'' ?>>40</option>
+                                    <option value="50" <?= $mPre==='50'?'selected':'' ?>>50</option>
+                                </select>
+                                <input type="hidden" name="horario" id="horaSel" value="<?= htmlspecialchars($horaPre) ?>">
                             </div>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label fw-semibold small">Duración <span class="text-danger">*</span></label>
                             <select class="form-select" name="duracion" id="duracionSel" required>
-                                <?php $opts=[[0.5,'30 minutos'],[1,'1 hora'],[1.5,'1h 30m'],[2,'2 horas'],[2.5,'2h 30m'],[3,'3 horas'],[3.5,'3h 30m']]; foreach($opts as [$v,$l]): ?>
-                                    <option value="<?= $v ?>" <?= $v==1?'selected':'' ?>><?= $l ?></option>
+                                <?php $opts=[[30,'30 minutos'],[60,'1 hora'],[90,'1h 30m'],[120,'2 horas'],[150,'2h 30m'],[180,'3 horas'],[210,'3h 30m']]; foreach($opts as [$v,$l]): ?>
+                                    <option value="<?= $v ?>" <?= $v==$duracionMinutos?'selected':'' ?>><?= $l ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
@@ -116,7 +129,7 @@ $telActual = preg_replace('/^\+51\s*/', '', (string)($usuarioActual['telefono'] 
                             <label class="form-label fw-semibold small">Observaciones (opcional)</label>
                             <div class="input-group">
                                 <span class="input-group-text" style="background:#f8fafc;"><i class="bi bi-chat-left-text"></i></span>
-                                <input type="text" class="form-control" name="observaciones" placeholder="Ej. Celebración, necesidades especiales, etc.">
+                                <input type="text" class="form-control" name="observaciones" value="<?= htmlspecialchars($_GET['observaciones'] ?? '') ?>" placeholder="Ej. Celebración, necesidades especiales, etc.">
                             </div>
                             <small class="text-muted" style="font-size:.68rem; float:right;">0/200</small>
                         </div>
@@ -124,7 +137,7 @@ $telActual = preg_replace('/^\+51\s*/', '', (string)($usuarioActual['telefono'] 
 
                     <div class="d-flex gap-2 mt-4">
                         <a href="<?= url('/canchas') ?>" class="btn btn-outline-secondary" style="border-radius:10px; padding:10px 18px; font-weight:600;"><i class="bi bi-arrow-left me-1"></i> Volver</a>
-                        <button type="submit" class="btn ms-auto" style="background:#0d7a33; color:#fff; border-radius:10px; padding:10px 22px; font-weight:700;">Continuar al pago <i class="bi bi-arrow-right ms-1"></i></button>
+                        <button type="submit" class="btn ms-auto" id="btnContinuar" style="background:#0d7a33; color:#fff; border-radius:10px; padding:10px 22px; font-weight:700;">Continuar al pago <i class="bi bi-arrow-right ms-1"></i></button>
                     </div>
                 </div>
             </form>
@@ -139,7 +152,7 @@ $telActual = preg_replace('/^\+51\s*/', '', (string)($usuarioActual['telefono'] 
             <div class="resumen-card">
                 <div class="resumen-img">
                     <img src="https://images.unsplash.com/photo-1522778119026-d647f0596c20?w=800&q=80&fit=crop" alt="Cancha">
-                    <span class="resumen-badge" style="left:auto; right:12px; background:#dcfce7; color:#166534;">Fútbol 5</span>
+                    <span class="resumen-badge" style="left:auto; right:12px; background:#dcfce7; color:#166534;"></span>
                     <span class="resumen-badge">Cancha 1</span>
                     <div class="resumen-img-txt">
                         <strong id="resCanchaNombre"><?= htmlspecialchars($canchaIni['nombre'] ?? 'Cancha 1') ?></strong>
@@ -148,10 +161,10 @@ $telActual = preg_replace('/^\+51\s*/', '', (string)($usuarioActual['telefono'] 
                 </div>
                 <ul class="resumen-list">
                     <li><span class="rl-ico"><i class="bi bi-geo-alt-fill"></i></span><span><small>Ubicación</small><strong>Tacna</strong></span><span class="ms-auto small text-muted">Tacna</span></li>
-                    <li><span class="rl-ico"><i class="bi bi-grid"></i></span><span><small>Tipo</small><strong id="resTipo"><?= htmlspecialchars($tipoIni) ?> - Césped sintético</strong></span></li>
+                    <li><span class="rl-ico"><i class="bi bi-grid"></i></span><span><small>Tipo</small><strong id="resTipo"><?= htmlspecialchars($tipoIni) ?> - Características por confirmar</strong></span></li>
                     <li><span class="rl-ico"><i class="bi bi-calendar3"></i></span><span><small>Fecha</small><strong id="resFecha"><?= htmlspecialchars($fechaPre) ?></strong></span></li>
                     <li><span class="rl-ico"><i class="bi bi-clock"></i></span><span><small>Hora</small><strong id="resHora">19:00 - 20:00 (1 hora)</strong></span></li>
-                    <li><span class="rl-ico"><i class="bi bi-people-fill"></i></span><span><small>Jugadores (referencial)</small><strong>Hasta <?= $capacidadIni ?> personas</strong></span></li>
+                    <li><span class="rl-ico"><i class="bi bi-info-circle"></i></span><span><small>Detalles adicionales</small><strong>Instalaciones por confirmar</strong></span></li>
                 </ul>
                 <div class="resumen-pago">
                     <div class="rp-row"><span>Precio por hora</span><strong id="resPrecioHora">S/ <?= number_format($precioHoraIni,0) ?></strong></div>
@@ -231,24 +244,45 @@ $telActual = preg_replace('/^\+51\s*/', '', (string)($usuarioActual['telefono'] 
     function actualizar(){
         var data=getCancha();
         var precio=data ? parseFloat(data.precio||60) : <?= (float)($canchaIni['precio_hora'] ?? 60) ?>;
-        var dur=parseFloat(selDur.value||'1');
+        var durMin=parseFloat(selDur.value||'60');
+        var dur=durMin/60;
         var total=precio*dur;
-        var hora=selHora.value||'19:00';
-        var fin=new Date('2000-01-01T'+hora+':00');
-        fin.setTime(fin.getTime()+Math.round(dur*3600*1000));
-        var finStr=String(fin.getHours()).padStart(2,'0')+':'+String(fin.getMinutes()).padStart(2,'0');
-        var durLbl=dur==0.5?'30 minutos':(dur==1?'1 hora':dur+' horas');
-        document.getElementById('resFecha').textContent=fmtFecha(inpFecha.value);
-        document.getElementById('resHora').textContent=hora+' - '+finStr+' ('+durLbl+')';
-        document.getElementById('resPrecioHora').textContent='S/ '+precio.toFixed(0);
-        document.getElementById('resTotal').textContent='S/ '+total.toFixed(0);
-        document.getElementById('resSaldo').textContent='S/ '+Math.max(0,total-20).toFixed(0);
-        if(data){
-            if(data.tipo) document.getElementById('resTipo').textContent=data.tipo+' - Césped sintético';
-            if(data.nombre) document.getElementById('resCanchaNombre').textContent=data.nombre;
+
+        var hVal = document.getElementById('horaVal').value;
+        var mVal = document.getElementById('minVal').value;
+        if(hVal) {
+            selHora.value = hVal + ':' + mVal;
+        } else {
+            selHora.value = '';
+        }
+
+        var btnContinuar = document.getElementById('btnContinuar');
+        if(!hVal || !inpFecha.value) {
+            document.getElementById('resFecha').textContent=fmtFecha(inpFecha.value);
+            document.getElementById('resHora').textContent='--:--';
+            document.getElementById('resPrecioHora').textContent='--';
+            document.getElementById('resTotal').textContent='--';
+            document.getElementById('resSaldo').textContent='--';
+            if(btnContinuar) btnContinuar.disabled = true;
+        } else {
+            if(btnContinuar) btnContinuar.disabled = false;
+            var hora=selHora.value||'19:00';
+            var fin=new Date('2000-01-01T'+hora+':00');
+            fin.setTime(fin.getTime()+Math.round(dur*3600*1000));
+            var finStr=String(fin.getHours()).padStart(2,'0')+':'+String(fin.getMinutes()).padStart(2,'0');
+            var durLbl=dur==0.5?'30 minutos':(dur==1?'1 hora':(dur==1.5?'1h 30m':dur+' horas'));
+            document.getElementById('resFecha').textContent=fmtFecha(inpFecha.value);
+            document.getElementById('resHora').textContent=hora+' - '+finStr+' ('+durLbl+')';
+            document.getElementById('resPrecioHora').textContent='S/ '+precio.toFixed(0);
+            document.getElementById('resTotal').textContent='S/ '+total.toFixed(0);
+            document.getElementById('resSaldo').textContent='S/ '+Math.max(0,total-20).toFixed(0);
+            if(data){
+                if(data.tipo) document.getElementById('resTipo').textContent=data.tipo+' - Características por confirmar';
+                if(data.nombre) document.getElementById('resCanchaNombre').textContent=data.nombre;
+            }
         }
     }
-    [selCancha, selHora, selDur, inpFecha].forEach(function(el){ el && el.addEventListener('change', actualizar); });
+    [selCancha, document.getElementById('horaVal'), document.getElementById('minVal'), selDur, inpFecha].forEach(function(el){ el && el.addEventListener('change', actualizar); });
     actualizar();
 })();
 </script>

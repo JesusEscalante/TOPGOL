@@ -139,21 +139,22 @@ INSERT INTO `usuarios` (`id`, `nombre`, `email`, `password`, `telefono`, `rol`, 
 (1, 'Carlos Administrador', 'admin@topgol.com', '$2y$10$OiuK1BALSi0zSYuQ/rNCquw4zWVSNy5GyRUebaFTabHhBAr9NbXry', '+51 987654321', 'admin', NOW(), NOW()),
 (2, 'Juan Pérez (Cliente)', 'cliente@topgol.com', '$2y$10$M1LfZcYe4VwpawZqFrdIO.4D63N82OC4B1drN4kQG4cJlvqVfj3ri', '+51 912345678', 'cliente', NOW(), NOW());
 
--- Inserción de 5 Canchas de Prueba
+-- Inserción de 6 Canchas de Prueba
 INSERT INTO `canchas` (`id`, `nombre`, `descripcion`, `precio_hora`, `capacidad`, `tipo`, `iluminacion`, `techada`, `estado`, `created_at`, `updated_at`) VALUES
-(1, 'Cancha 1 - La Bombonera', 'Cancha de fútbol 5 con techo cobertor térmico, césped sintético monofilamento de 50mm y arcos reglamentarios.', 60.00, 10, 'futbol_5', 1, 1, 'disponible', NOW(), NOW()),
-(2, 'Cancha 2 - El Monumental', 'Cancha de fútbol 7 al aire libre con césped de alta densidad, excelente drenaje e iluminación LED nocturna de 8 focos.', 90.00, 14, 'futbol_7', 1, 0, 'disponible', NOW(), NOW()),
-(3, 'Cancha 3 - Camp Nou', 'Campo reglamentario para fútbol 11 profesional, ideal para torneos interempresariales, campeonatos y eventos corporativos.', 160.00, 22, 'futbol_11', 1, 0, 'disponible', NOW(), NOW()),
-(4, 'Cancha 4 - Santiago Bernabéu', 'Cancha de fútbol 7 totalmente techada y climatizada, graderías cómodas para espectadores y vestuarios VIP adyacentes.', 110.00, 14, 'futbol_7', 1, 1, 'disponible', NOW(), NOW()),
-(5, 'Cancha 5 - Maracaná', 'Cancha de fútbol 5 rápida al aire libre con iluminación panorámica y redes de protección perimétricas de máxima seguridad.', 55.00, 10, 'futbol_5', 1, 0, 'disponible', NOW(), NOW());
+(1, 'Cancha 1', 'Cancha de fútbol 5', 60.00, 10, 'futbol_5', 1, 0, 'disponible', NOW(), NOW()),
+(2, 'Cancha 2', 'Cancha de fútbol 5', 60.00, 10, 'futbol_5', 1, 0, 'disponible', NOW(), NOW()),
+(3, 'Cancha 3', 'Cancha de fútbol 5', 60.00, 10, 'futbol_5', 1, 0, 'disponible', NOW(), NOW()),
+(4, 'Cancha 4', 'Cancha de fútbol 5', 60.00, 10, 'futbol_5', 1, 0, 'disponible', NOW(), NOW()),
+(5, 'Cancha 5', 'Cancha de fútbol 5', 60.00, 10, 'futbol_5', 1, 0, 'disponible', NOW(), NOW()),
+(6, 'Cancha 6', 'Cancha de fútbol 5', 60.00, 10, 'futbol_5', 1, 0, 'disponible', NOW(), NOW());
 
 -- Inserción de 5 Reservas de Prueba
 INSERT INTO `reservas` (`id`, `usuario_id`, `cancha_id`, `fecha`, `hora_inicio`, `hora_fin`, `duracion_horas`, `total_pago`, `estado`, `observaciones`, `metodo_pago`, `adelanto_monto`, `cliente_nombre`, `contacto_telefono`, `pago_estado`, `comprobante_ruta`, `comprobante_nombre`, `comprobante_tipo`, `comprobante_size`, `comprobante_subido_at`, `created_at`, `updated_at`) VALUES
 (1, 2, 1, CURDATE(), '18:00:00', '19:00:00', 1, 60.00, 'confirmada', 'Partido con amigos de la oficina, solicitar 10 chalecos.', 'yape', 20.00, 'Juan Pérez (Cliente)', '+51 912345678', 'verificado', 'uploads/comprobantes/demo-4587.jpg', 'yape-4587.jpg', 'image/jpeg', 182400, NOW(), NOW(), NOW()),
-(2, 2, 2, DATE_ADD(CURDATE(), INTERVAL 1 DAY), '20:00:00', '22:00:00', 2, 180.00, 'pendiente', 'Semifinal del torneo de fin de semana.', 'yape', 20.00, 'Juan Pérez (Cliente)', '+51 912345678', 'en_revision', 'uploads/comprobantes/demo-4586.jpg', 'yape-4586.jpg', 'image/jpeg', 195300, NOW(), NOW(), NOW()),
-(3, 2, 4, DATE_ADD(CURDATE(), INTERVAL 2 DAY), '19:00:00', '20:00:00', 1, 110.00, 'confirmada', 'Llevar balón número 5 oficial.', 'transferencia_bcp', 20.00, 'Juan Pérez (Cliente)', '+51 912345678', 'verificado', 'uploads/comprobantes/demo-4585.pdf', 'bcp-4585.pdf', 'application/pdf', 210800, NOW(), NOW(), NOW()),
-(4, 2, 3, DATE_ADD(CURDATE(), INTERVAL 3 DAY), '16:00:00', '18:00:00', 2, 320.00, 'pendiente', 'Partido amistoso de fútbol 11.', NULL, 20.00, NULL, NULL, 'pendiente', NULL, NULL, NULL, NULL, NULL, NOW(), NOW()),
-(5, 2, 5, DATE_SUB(CURDATE(), INTERVAL 1 DAY), '17:00:00', '18:00:00', 1, 55.00, 'finalizada', 'Partido jugado y cancelado en caja satisfactoriamente.', 'yape', 20.00, 'Juan Pérez (Cliente)', '+51 912345678', 'verificado', 'uploads/comprobantes/demo-4584.jpg', 'yape-4584.jpg', 'image/jpeg', 176900, NOW(), NOW(), NOW());
+(2, 2, 2, DATE_ADD(CURDATE(), INTERVAL 1 DAY), '20:00:00', '22:00:00', 2, 120.00, 'pendiente', 'Semifinal del torneo de fin de semana.', 'yape', 20.00, 'Juan Pérez (Cliente)', '+51 912345678', 'en_revision', 'uploads/comprobantes/demo-4586.jpg', 'yape-4586.jpg', 'image/jpeg', 195300, NOW(), NOW(), NOW()),
+(3, 2, 4, DATE_ADD(CURDATE(), INTERVAL 2 DAY), '19:00:00', '20:00:00', 1, 60.00, 'confirmada', 'Llevar balón número 5 oficial.', 'transferencia_bcp', 20.00, 'Juan Pérez (Cliente)', '+51 912345678', 'verificado', 'uploads/comprobantes/demo-4585.pdf', 'bcp-4585.pdf', 'application/pdf', 210800, NOW(), NOW(), NOW()),
+(4, 2, 3, DATE_ADD(CURDATE(), INTERVAL 3 DAY), '16:00:00', '18:00:00', 2, 120.00, 'pendiente', 'Partido amistoso de fútbol 11.', NULL, 20.00, NULL, NULL, 'pendiente', NULL, NULL, NULL, NULL, NULL, NOW(), NOW()),
+(5, 2, 5, DATE_SUB(CURDATE(), INTERVAL 1 DAY), '17:00:00', '18:00:00', 1, 60.00, 'finalizada', 'Partido jugado y cancelado en caja satisfactoriamente.', 'yape', 20.00, 'Juan Pérez (Cliente)', '+51 912345678', 'verificado', 'uploads/comprobantes/demo-4584.jpg', 'yape-4584.jpg', 'image/jpeg', 176900, NOW(), NOW(), NOW());
 
 -- Inserción de Productos de Prueba (inventario)
 INSERT INTO `productos` (`id`, `nombre`, `descripcion`, `categoria`, `precio`, `stock`, `stock_minimo`, `unidad`, `estado`, `created_at`, `updated_at`) VALUES

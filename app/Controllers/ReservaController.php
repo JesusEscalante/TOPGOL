@@ -109,15 +109,54 @@ class ReservaController extends Controller {
         $clienteId = (int)($post['cliente_id'] ?? 0);
         $contactoTelefono = trim($post['contacto_telefono'] ?? '');
         $metodoPago = trim($post['metodo_pago'] ?? ($esAdmin ? 'efectivo' : 'yape'));
-        $metodosValidos = $esAdmin ? ['yape', 'transferencia_bcp', 'efectivo'] : ['yape', 'transferencia_bcp'];
+        $metodosValidos = $esAdmin ? ['yape', 'efectivo', 'niubiz'] : ['yape'];
         if (!in_array($metodoPago, $metodosValidos, true)) {
-            $metodoPago = $esAdmin ? 'efectivo' : 'yape';
+            sessionFlash('error', 'Método de pago no válido.', 'danger');
+            $this->redirect("/reserva/crear/{$canchaId}");
+            return;
         }
-        $esEfectivoPresencial = $esAdmin && $metodoPago === 'efectivo';
-        $adelantoMonto = 20.00;
 
-        // Si es admin, permite asignar la reserva a un cliente existente o usar nombre libre
+        $esPresencialAdmin = $esAdmin && in_array($metodoPago, ['efectivo', 'niubiz'], true);
+        $adelantoMonto = 20.00;
+        $tipoCobroAdmin = trim($post['tipo_cobro'] ?? 'completo');
+
+        // 0. Origen de la reserva (web, presencial, llamada, whatsapp)
+        $origen = 'web';
         if ($esAdmin) {
+            $origenInput = trim($post['origen'] ?? 'presencial');
+            $origen = in_array($origenInput, ['presencial', 'llamada', 'whatsapp', 'web'], true) ? $origenInput : 'presencial';
+        }
+
+        // Validación de número de contacto (celular / WhatsApp) - obligatorio para ambas vistas
+        if ($contactoTelefono === '') {
+            sessionFlash('error', 'Ingresa un número de contacto (celular / WhatsApp) para la reserva.', 'danger');
+            $this->redirect("/reserva/crear/{$canchaId}");
+            return;
+        }
+        if (!preg_match('/^[\d\s\+\-]{7,20}$/', $contactoTelefono)) {
+            sessionFlash('error', 'El número de contacto no es válido. Usa 7 a 20 dígitos (puede incluir +, espacios o guiones).', 'danger');
+            $this->redirect("/reserva/crear/{$canchaId}");
+            return;
+        }
+        // Normalizar con +51 si viene solo el número (diseño con etiqueta +51)
+        $contactoTelefono = preg_replace('/\s+/', '', $contactoTelefono);
+        if (!str_starts_with($contactoTelefono, '+')) {
+            $contactoTelefono = '+51 ' . ltrim($contactoTelefono, '0');
+        } else {
+            $contactoTelefono = preg_replace('/^\+51\s*/', '+51 ', $contactoTelefono);
+        }
+
+        // Si es admin, vincular a cliente existente o auto-crear cliente real (nunca guardar al admin como cliente)
+        if ($esAdmin) {
+            if ($clienteNombre === '') {
+                $clienteNombre = trim($post['cliente_nombre'] ?? '');
+            }
+            if ($clienteNombre === '') {
+                sessionFlash('error', 'Como administrador debes ingresar el nombre del cliente.', 'danger');
+                $this->redirect("/reserva/crear/{$canchaId}");
+                return;
+            }
+
             if ($clienteId > 0) {
                 $modeloUsuarioTmp = new \App\Models\Usuario();
                 $cliente = $modeloUsuarioTmp->obtenerPorId($clienteId);
@@ -128,30 +167,10 @@ class ReservaController extends Controller {
                     }
                 }
             }
-            if ($clienteNombre === '') {
-                $clienteNombre = trim($post['cliente_nombre'] ?? '');
-            }
-            if ($clienteNombre === '') {
-                sessionFlash('error', 'Como administrador debes ingresar el nombre del cliente.', 'danger');
-                $this->redirect("/reserva/crear/{$canchaId}");
-            }
-        }
-
-        // Validación de número de contacto (celular / WhatsApp) - obligatorio para ambas vistas
-        if ($contactoTelefono === '') {
-            sessionFlash('error', 'Ingresa un número de contacto (celular / WhatsApp) para la reserva.', 'danger');
-            $this->redirect("/reserva/crear/{$canchaId}");
-        }
-        if (!preg_match('/^[\d\s\+\-]{7,20}$/', $contactoTelefono)) {
-            sessionFlash('error', 'El número de contacto no es válido. Usa 7 a 20 dígitos (puede incluir +, espacios o guiones).', 'danger');
-            $this->redirect("/reserva/crear/{$canchaId}");
-        }
-        // Normalizar con +51 si viene solo el número (diseño con etiqueta +51)
-        $contactoTelefono = preg_replace('/\s+/', '', $contactoTelefono);
-        if (!str_starts_with($contactoTelefono, '+')) {
-            $contactoTelefono = '+51 ' . ltrim($contactoTelefono, '0');
-        } else {
-            $contactoTelefono = preg_replace('/^\+51\s*/', '+51 ', $contactoTelefono);
+            // Para clientes presenciales, llamadas o WhatsApp sin cuenta web:
+            // No creamos cuentas ficticias con contraseñas o correos generados.
+            // La reserva mantiene usuario_id del operador/administrador responsable,
+            // y almacena el nombre y teléfono reales del cliente en cliente_nombre y contacto_telefono.
         }
 
         // 1. Validaciones básicas de campos
@@ -159,6 +178,9 @@ class ReservaController extends Controller {
             sessionFlash('error', 'Por favor completa todos los datos obligatorios para la reserva.', 'danger');
             $this->redirect("/reserva/crear/{$canchaId}");
         }
+
+        // Zona horaria provisional
+        date_default_timezone_set('America/Lima');
 
         // 2. Validación de fecha (no permitir fechas anteriores al día de hoy)
         $hoy = date('Y-m-d');
@@ -182,9 +204,36 @@ class ReservaController extends Controller {
             $this->redirect("/reserva/crear/{$canchaId}");
         }
 
+        $minutosInicio = (int)date('i', $timestampInicio);
+        if ($minutosInicio !== 0 && $minutosInicio !== 30) {
+            sessionFlash('error', 'La hora de inicio debe ser en bloques de 30 minutos (:00 o :30).', 'danger');
+            $this->redirect("/reserva/crear/{$canchaId}");
+        }
+
         $horaInicioNormalizada = date('H:i:s', $timestampInicio);
         $timestampFin = $timestampInicio + (int)round($duracionHoras * 3600);
         $horaFinNormalizada = date('H:i:s', $timestampFin);
+
+        // 4b. Validaciones de horario de apertura/cierre y hora pasada
+        $diaSemana = (int)date('N', strtotime($fecha)); // 1=Lunes, 7=Domingo
+        $horaApertura = ($diaSemana >= 6) ? '07:00' : '09:00';
+        $horaCierre = '23:00';
+
+        if (!$esAdmin && date('H:i', $timestampInicio) < $horaApertura) {
+             sessionFlash('error', "El horario de atención al público para esta fecha inicia a las {$horaApertura}.", 'danger');
+             $this->redirect("/reserva/crear/{$canchaId}");
+             return;
+        }
+        $hFinStr = date('H:i', $timestampFin);
+        if (!$esAdmin && ($hFinStr > $horaCierre || date('Y-m-d', $timestampFin) > $fecha || $hFinStr === '00:00')) {
+             sessionFlash('error', "Las reservas de clientes no pueden terminar después de las {$horaCierre}.", 'danger');
+             $this->redirect("/reserva/crear/{$canchaId}");
+             return;
+        }
+        if ($fecha === $hoy && $timestampInicio < time()) {
+             sessionFlash('error', 'No puedes reservar en un horario que ya pasó.', 'danger');
+             $this->redirect("/reserva/crear/{$canchaId}");
+        }
 
         // 5. Control estricto de disponibilidad (Solapamiento de horarios)
         $estaDisponible = $modeloCancha->estaDisponible($canchaId, $fecha, $horaInicioNormalizada, $horaFinNormalizada);
@@ -207,12 +256,17 @@ class ReservaController extends Controller {
             }
         }
 
-        // Si es admin quien reserva, se confirma directamente; si es cliente, queda 'pendiente' o 'confirmada'
-        $estadoInicial = isAdmin() ? 'confirmada' : 'confirmada';
+        // Si es admin quien reserva, se confirma directamente; si es cliente con comprobante por revisar, queda 'pendiente'
+        $estadoInicial = isAdmin() ? 'confirmada' : 'pendiente';
 
-        // Para admin en efectivo: pago completo presencial, sin comprobante
-        if ($esEfectivoPresencial) {
-            $adelantoMonto = $duracionHoras * (float)$cancha['precio_hora'];
+        // Para admin presencial: pago completo o adelanto
+        if ($esAdmin) {
+            if ($tipoCobroAdmin === 'adelanto') {
+                $adelantoInput = isset($post['adelanto_monto']) && is_numeric($post['adelanto_monto']) ? round((float)$post['adelanto_monto'], 2) : 20.00;
+                $adelantoMonto = min($totalPago, max(0.0, $adelantoInput));
+            } else {
+                $adelantoMonto = $totalPago;
+            }
         }
 
         // 6b. Comprobante: obligatorio para clientes, opcional para admin (cualquier método)
@@ -313,6 +367,7 @@ class ReservaController extends Controller {
             'estado'             => $estadoInicial,
             'observaciones'      => $observaciones,
             'metodo_pago'        => $metodoPago,
+            'origen'             => $origen,
             'adelanto_monto'     => $adelantoMonto,
             'cliente_nombre'     => $esAdmin ? $clienteNombre : null,
             'contacto_telefono'  => $contactoTelefono,
@@ -372,30 +427,38 @@ class ReservaController extends Controller {
 
         $filtroEstado = trim($_GET['estado'] ?? '');
         $filtroPago = trim($_GET['pago'] ?? '');
+        $filtroAsistencia = trim($_GET['asistencia'] ?? '');
         $busqueda = trim($_GET['q'] ?? '');
 
         $estadosValidos = ['pendiente', 'confirmada', 'cancelada', 'finalizada'];
         $pagosValidos = ['pendiente', 'en_revision', 'verificado', 'rechazado'];
+        $asistenciasValidas = ['sin_registrar', 'presente', 'tardanza', 'retraso_confirmado', 'no_asistio'];
         if ($filtroEstado !== '' && !in_array($filtroEstado, $estadosValidos, true)) {
             $filtroEstado = '';
         }
         if ($filtroPago !== '' && !in_array($filtroPago, $pagosValidos, true)) {
             $filtroPago = '';
         }
+        if ($filtroAsistencia !== '' && !in_array($filtroAsistencia, $asistenciasValidas, true)) {
+            $filtroAsistencia = '';
+        }
 
         $modeloReserva = new Reserva();
         $todas = $modeloReserva->obtenerTodas();
 
-        $reservas = array_values(array_filter($todas, function ($r) use ($filtroEstado, $filtroPago, $busqueda) {
+        $reservas = array_values(array_filter($todas, function ($r) use ($filtroEstado, $filtroPago, $filtroAsistencia, $busqueda) {
             if ($filtroEstado !== '' && $r['estado'] !== $filtroEstado) {
                 return false;
             }
             if ($filtroPago !== '' && ($r['pago_estado'] ?? 'pendiente') !== $filtroPago) {
                 return false;
             }
+            if ($filtroAsistencia !== '' && ($r['asistencia_estado'] ?? 'sin_registrar') !== $filtroAsistencia) {
+                return false;
+            }
             if ($busqueda !== '') {
                 $q = mb_strtolower($busqueda);
-                $texto = mb_strtolower('#' . $r['id'] . ' ' . ($r['usuario_nombre'] ?? '') . ' ' . ($r['usuario_email'] ?? '') . ' ' . ($r['cancha_nombre'] ?? ''));
+                $texto = mb_strtolower('#' . $r['id'] . ' ' . ($r['usuario_nombre'] ?? '') . ' ' . ($r['usuario_email'] ?? '') . ' ' . ($r['cancha_nombre'] ?? '') . ' ' . ($r['contacto_telefono'] ?? ''));
                 if (!str_contains($texto, $q)) {
                     return false;
                 }
@@ -404,13 +467,14 @@ class ReservaController extends Controller {
         }));
 
         $this->view('reservas/admin', [
-            'titulo'        => 'Reservas - Panel Administrador',
-            'adminMenu'     => ($filtroPago === 'en_revision' && $filtroEstado === '' && $busqueda === '') ? 'pagos' : 'reservas',
-            'reservas'      => $reservas,
-            'estadisticas'  => $modeloReserva->obtenerEstadisticas(),
-            'filtroEstado'  => $filtroEstado,
-            'filtroPago'    => $filtroPago,
-            'busqueda'      => $busqueda,
+            'titulo'           => 'Reservas - Panel Administrador',
+            'adminMenu'        => ($filtroPago === 'en_revision' && $filtroEstado === '' && $busqueda === '') ? 'pagos' : 'reservas',
+            'reservas'         => $reservas,
+            'estadisticas'     => $modeloReserva->obtenerEstadisticas(),
+            'filtroEstado'     => $filtroEstado,
+            'filtroPago'       => $filtroPago,
+            'filtroAsistencia' => $filtroAsistencia,
+            'busqueda'         => $busqueda,
         ], false);
     }
 
@@ -441,7 +505,22 @@ class ReservaController extends Controller {
             $this->redirect('/admin/reservas');
         }
 
-        $ok = $modeloReserva->actualizarEstadoPago($idReserva, $nuevoEstado, (int)$_SESSION['usuario_id']);
+        $grupo = $_POST['evento_grupo'] ?? null;
+        if (!empty($grupo)) {
+            $ok = $modeloReserva->actualizarEstadoPagoGrupo($grupo, $nuevoEstado, (int)$_SESSION['usuario_id']);
+            if ($nuevoEstado === 'verificado') {
+                $modeloReserva->actualizarEstadoGrupo($grupo, 'confirmada');
+            } elseif ($nuevoEstado === 'rechazado') {
+                $modeloReserva->actualizarEstadoGrupo($grupo, 'cancelada');
+            }
+        } else {
+            $ok = $modeloReserva->actualizarEstadoPago($idReserva, $nuevoEstado, (int)$_SESSION['usuario_id']);
+            if ($nuevoEstado === 'verificado') {
+                $modeloReserva->actualizarEstado($idReserva, 'confirmada');
+            } elseif ($nuevoEstado === 'rechazado') {
+                $modeloReserva->actualizarEstado($idReserva, 'cancelada');
+            }
+        }
         if ($this->isAjax()) {
             if ($ok) {
                 $this->json(['ok'=>true,'id'=>$idReserva,'pago_estado'=>$nuevoEstado]);
@@ -462,89 +541,293 @@ class ReservaController extends Controller {
     }
 
     /**
-     * Calendario semanal completo de reservas (Solo Admin).
-     * Vista de ocupación por día y hora con filtro por cancha.
+     * Vista para modificar una reserva existente (Solo Admin)
+     */
+    public function adminEdit(string|int $id): void {
+        $this->requireAdmin();
+        $idReserva = (int)$id;
+
+        $modeloReserva = new Reserva();
+        $reserva = $modeloReserva->obtenerPorId($idReserva);
+        if (!$reserva) {
+            sessionFlash('error', 'La reserva no fue encontrada.', 'warning');
+            $this->redirect('/admin/reservas');
+            return;
+        }
+
+        $modeloCancha = new Cancha();
+        $canchas = $modeloCancha->obtenerTodas();
+
+        $this->view('reservas/admin_edit', [
+            'titulo'    => "Editar Reserva #{$idReserva} - Panel Administrador",
+            'adminMenu' => 'reservas',
+            'reserva'   => $reserva,
+            'canchas'   => $canchas,
+        ], false);
+    }
+
+    /**
+     * Procesa la actualización de una reserva (Solo Admin)
+     * Valida disponibilidad y previene cruces de horario.
+     */
+    public function adminUpdate(string|int $id): void {
+        $this->requireAdmin();
+        $this->validateCsrf();
+        $idReserva = (int)$id;
+
+        $modeloReserva = new Reserva();
+        $reserva = $modeloReserva->obtenerPorId($idReserva);
+        if (!$reserva) {
+            sessionFlash('error', 'La reserva no existe.', 'warning');
+            $this->redirect('/admin/reservas');
+            return;
+        }
+
+        $post = $this->sanitizePost();
+        $canchaId = (int)($post['cancha_id'] ?? $reserva['cancha_id']);
+        $fecha = trim($post['fecha'] ?? $reserva['fecha']);
+        $horaInicio = trim($post['hora_inicio'] ?? $reserva['hora_inicio']);
+        $duracionHoras = (float)($post['duracion_horas'] ?? $reserva['duracion_horas']);
+        $estado = trim($post['estado'] ?? $reserva['estado']);
+        $origen = trim($post['origen'] ?? ($reserva['origen'] ?? 'web'));
+        $clienteNombre = trim($post['cliente_nombre'] ?? ($reserva['cliente_nombre'] ?? $reserva['usuario_nombre']));
+        $contactoTelefono = trim($post['contacto_telefono'] ?? ($reserva['contacto_telefono'] ?? ''));
+        $observaciones = trim($post['observaciones'] ?? '');
+        $adelantoMonto = isset($post['adelanto_monto']) && is_numeric($post['adelanto_monto'])
+            ? round((float)$post['adelanto_monto'], 2)
+            : (float)$reserva['adelanto_monto'];
+
+        if (!in_array($estado, ['pendiente', 'confirmada', 'cancelada', 'finalizada'], true)) {
+            $estado = $reserva['estado'];
+        }
+        if (!in_array($origen, ['web', 'presencial', 'llamada', 'whatsapp'], true)) {
+            $origen = $reserva['origen'] ?? 'web';
+        }
+
+        // Restricción de seguridad: no permitir confirmar directamente una reserva web con comprobante pendiente de verificación
+        if (($reserva['origen'] ?? 'web') === 'web' && ($reserva['pago_estado'] ?? 'pendiente') === 'en_revision' && $estado === 'confirmada') {
+            sessionFlash('error', 'Esta reserva web tiene un comprobante pendiente de verificación en caja/banco. Debe verificarse el comprobante antes de confirmarla.', 'warning');
+            $this->redirect("/admin/reserva/editar/{$idReserva}");
+            return;
+        }
+
+        if ($canchaId <= 0 || empty($fecha) || empty($horaInicio) || $duracionHoras <= 0) {
+            sessionFlash('error', 'Completa todos los campos obligatorios para guardar la reserva.', 'danger');
+            $this->redirect("/admin/reserva/editar/{$idReserva}");
+            return;
+        }
+
+        $timestampInicio = strtotime("{$fecha} {$horaInicio}");
+        if ($timestampInicio === false) {
+            sessionFlash('error', 'Formato de hora de inicio inválido.', 'danger');
+            $this->redirect("/admin/reserva/editar/{$idReserva}");
+            return;
+        }
+
+        $horaInicioNormalizada = date('H:i:s', $timestampInicio);
+        $timestampFin = $timestampInicio + (int)round($duracionHoras * 3600);
+        $horaFinNormalizada = date('H:i:s', $timestampFin);
+
+        $modeloCancha = new Cancha();
+        $cancha = $modeloCancha->obtenerPorId($canchaId);
+        if (!$cancha) {
+            sessionFlash('error', 'La cancha indicada no existe.', 'danger');
+            $this->redirect("/admin/reserva/editar/{$idReserva}");
+            return;
+        }
+
+        if ($cancha['estado'] === 'mantenimiento' && in_array($estado, ['pendiente', 'confirmada'], true)) {
+            sessionFlash('error', "La cancha '{$cancha['nombre']}' se encuentra en mantenimiento y no admite reservas activas.", 'danger');
+            $this->redirect("/admin/reserva/editar/{$idReserva}");
+            return;
+        }
+
+        // Control de disponibilidad (excluyendo la misma reserva que se edita)
+        if (in_array($estado, ['pendiente', 'confirmada'], true)) {
+            $disponible = $modeloCancha->estaDisponible($canchaId, $fecha, $horaInicioNormalizada, $horaFinNormalizada, $idReserva);
+            if (!$disponible) {
+                sessionFlash('error', "No se puede guardar: La cancha '{$cancha['nombre']}' ya cuenta con una reserva activa entre las {$horaInicioNormalizada} y las {$horaFinNormalizada} en la fecha {$fecha}.", 'danger');
+                $this->redirect("/admin/reserva/editar/{$idReserva}");
+                return;
+            }
+        }
+
+        $precioHora = (float)$cancha['precio_hora'];
+        $totalPago = $duracionHoras * $precioHora;
+
+        $ok = $modeloReserva->actualizarReserva($idReserva, [
+            'cancha_id'         => $canchaId,
+            'fecha'             => $fecha,
+            'hora_inicio'       => $horaInicioNormalizada,
+            'hora_fin'          => $horaFinNormalizada,
+            'duracion_horas'    => $duracionHoras,
+            'total_pago'        => $totalPago,
+            'estado'            => $estado,
+            'observaciones'     => $observaciones,
+            'origen'            => $origen,
+            'cliente_nombre'    => $clienteNombre,
+            'contacto_telefono' => $contactoTelefono,
+            'adelanto_monto'    => $adelantoMonto,
+        ]);
+
+        if ($ok) {
+            sessionFlash('success', "Reserva #{$idReserva} actualizada correctamente.", 'success');
+            $this->redirect('/admin/reservas');
+        } else {
+            sessionFlash('error', 'No se pudo guardar la modificación de la reserva.', 'danger');
+            $this->redirect("/admin/reserva/editar/{$idReserva}");
+        }
+    }
+
+    /**
+     * Calendario administrativo con vista diaria (las 6 canchas) y semanal.
      */
     public function calendario(): void {
         $this->requireAdmin();
 
-        // Semana a mostrar (cualquier fecha dentro de ella; por defecto hoy)
-        $ref = trim($_GET['semana'] ?? date('Y-m-d'));
+        $vista = trim($_GET['vista'] ?? 'dia');
+        if (!in_array($vista, ['dia', 'semana'], true)) {
+            $vista = 'dia';
+        }
+
+        $ref = trim($_GET['fecha'] ?? $_GET['semana'] ?? date('Y-m-d'));
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $ref)) {
             $ref = date('Y-m-d');
         }
 
-        // Lunes de la semana (N: 1=lunes ... 7=domingo)
-        $lunes = date('Y-m-d', strtotime($ref . ' -' . (date('N', strtotime($ref)) - 1) . ' days'));
-        $dias = [];
-        for ($i = 0; $i < 7; $i++) {
-            $dias[] = date('Y-m-d', strtotime($lunes . " +{$i} days"));
-        }
-
-        // Filtro por cancha
         $filtroCancha = (int)($_GET['cancha'] ?? 0);
 
         $modeloCancha = new Cancha();
         $canchas = $modeloCancha->obtenerTodas();
 
-        // Reservas de la semana (excluye canceladas)
         $modeloReserva = new Reserva();
         $todas = $modeloReserva->obtenerTodas();
-        $semana = array_values(array_filter($todas, static function ($r) use ($dias, $filtroCancha) {
-            if (!in_array($r['fecha'], $dias, true)) {
-                return false;
-            }
-            if ($r['estado'] === 'cancelada') {
-                return false;
-            }
-            if ($filtroCancha > 0 && (int)$r['cancha_id'] !== $filtroCancha) {
-                return false;
-            }
-            return true;
-        }));
 
-        // Agrupar por [fecha][slot hora] las reservas que se solapan con cada bloque 30 min (07:00-00:00)
         $horas = [];
         for ($h = 7; $h <= 23; $h++) {
-            foreach (['00','30'] as $mm) {
+            foreach (['00', '30'] as $mm) {
                 $horas[] = sprintf('%02d:%s', $h, $mm);
             }
         }
-        $grilla = [];
-        foreach ($dias as $d) {
-            foreach ($horas as $slot) {
-                $ini = $slot . ':00';
-                $fin = date('H:i:s', strtotime($slot . ' +30 minutes'));
-                if ($fin === '00:00:00') {
-                    $fin = '24:00:00';
-                }
-                $celda = [];
-                foreach ($semana as $r) {
-                    if ($r['fecha'] !== $d) {
-                        continue;
-                    }
-                    $rFin = $r['hora_fin'] === '00:00:00' ? '24:00:00' : $r['hora_fin'];
-                    if ($r['hora_inicio'] < $fin && $rFin > $ini) {
-                        $celda[] = $r;
-                    }
-                }
-                usort($celda, static fn($a, $b) => strcmp($a['hora_inicio'], $b['hora_inicio']));
-                $grilla[$d][$slot] = $celda;
-            }
-        }
 
-        $this->view('reservas/calendario', [
-            'titulo'       => 'Calendario de reservas - Panel Administrador',
-            'adminMenu'    => 'reservas',
-            'dias'         => $dias,
-            'lunes'        => $lunes,
-            'semanaRef'    => $ref,
-            'horas'        => $horas,
-            'grilla'       => $grilla,
-            'canchas'      => $canchas,
-            'filtroCancha' => $filtroCancha,
-            'hoy'          => date('Y-m-d'),
-        ], false);
+        $hoy = date('Y-m-d');
+        $horaActual = date('H:i:s');
+
+        if ($vista === 'dia') {
+            $fechaDia = $ref;
+            $reservasDia = array_values(array_filter($todas, static fn($r) => $r['fecha'] === $fechaDia && $r['estado'] !== 'cancelada'));
+
+            $grillaDia = [];
+            foreach ($canchas as $c) {
+                $cid = (int)$c['id'];
+                foreach ($horas as $slot) {
+                    $ini = $slot . ':00';
+                    $fin = date('H:i:s', strtotime($slot . ' +30 minutes'));
+                    if ($fin === '00:00:00') $fin = '24:00:00';
+
+                    $celda = [];
+                    foreach ($reservasDia as $r) {
+                        if ((int)$r['cancha_id'] !== $cid) continue;
+                        $rFin = $r['hora_fin'] === '00:00:00' ? '24:00:00' : $r['hora_fin'];
+                        if ($r['hora_inicio'] < $fin && $rFin > $ini) {
+                            $celda[] = $r;
+                        }
+                    }
+                    $grillaDia[$cid][$slot] = $celda;
+                }
+            }
+
+            $resumenCanchas = [];
+            foreach ($canchas as $c) {
+                $cid = (int)$c['id'];
+                $enMantenimiento = ($c['estado'] === 'mantenimiento');
+                $reservasCancha = array_values(array_filter($reservasDia, static fn($r) => (int)$r['cancha_id'] === $cid));
+
+                $reservaEnCurso = null;
+                $proximaReserva = null;
+                if ($fechaDia === $hoy) {
+                    foreach ($reservasCancha as $r) {
+                        $rFin = $r['hora_fin'] === '00:00:00' ? '24:00:00' : $r['hora_fin'];
+                        if ($r['hora_inicio'] <= $horaActual && $rFin > $horaActual) {
+                            $reservaEnCurso = $r;
+                            break;
+                        } elseif ($r['hora_inicio'] > $horaActual && ($proximaReserva === null || $r['hora_inicio'] < $proximaReserva['hora_inicio'])) {
+                            $proximaReserva = $r;
+                        }
+                    }
+                }
+
+                $resumenCanchas[$cid] = [
+                    'cancha'            => $c,
+                    'en_mantenimiento'  => $enMantenimiento,
+                    'total_reservas'    => count($reservasCancha),
+                    'reserva_en_curso'  => $reservaEnCurso,
+                    'proxima_reserva'   => $proximaReserva,
+                ];
+            }
+
+            $this->view('reservas/calendario', [
+                'titulo'         => 'Calendario de Canchas - Panel Administrador',
+                'adminMenu'      => 'calendario',
+                'vista'          => 'dia',
+                'fechaDia'       => $fechaDia,
+                'horas'          => $horas,
+                'canchas'        => $canchas,
+                'grillaDia'      => $grillaDia,
+                'resumenCanchas' => $resumenCanchas,
+                'hoy'            => $hoy,
+                'horaActual'     => $horaActual,
+            ], false);
+
+        } else {
+            // Vista Semanal
+            $lunes = date('Y-m-d', strtotime($ref . ' -' . (date('N', strtotime($ref)) - 1) . ' days'));
+            $dias = [];
+            for ($i = 0; $i < 7; $i++) {
+                $dias[] = date('Y-m-d', strtotime($lunes . " +{$i} days"));
+            }
+
+            $semana = array_values(array_filter($todas, static function ($r) use ($dias, $filtroCancha) {
+                if (!in_array($r['fecha'], $dias, true)) return false;
+                if ($r['estado'] === 'cancelada') return false;
+                if ($filtroCancha > 0 && (int)$r['cancha_id'] !== $filtroCancha) return false;
+                return true;
+            }));
+
+            $grilla = [];
+            foreach ($dias as $d) {
+                foreach ($horas as $slot) {
+                    $ini = $slot . ':00';
+                    $fin = date('H:i:s', strtotime($slot . ' +30 minutes'));
+                    if ($fin === '00:00:00') $fin = '24:00:00';
+                    $celda = [];
+                    foreach ($semana as $r) {
+                        if ($r['fecha'] !== $d) continue;
+                        $rFin = $r['hora_fin'] === '00:00:00' ? '24:00:00' : $r['hora_fin'];
+                        if ($r['hora_inicio'] < $fin && $rFin > $ini) {
+                            $celda[] = $r;
+                        }
+                    }
+                    usort($celda, static fn($a, $b) => strcmp($a['hora_inicio'], $b['hora_inicio']));
+                    $grilla[$d][$slot] = $celda;
+                }
+            }
+
+            $this->view('reservas/calendario', [
+                'titulo'       => 'Calendario de reservas - Panel Administrador',
+                'adminMenu'    => 'calendario',
+                'vista'        => 'semana',
+                'dias'         => $dias,
+                'lunes'        => $lunes,
+                'semanaRef'    => $ref,
+                'horas'        => $horas,
+                'grilla'       => $grilla,
+                'canchas'      => $canchas,
+                'filtroCancha' => $filtroCancha,
+                'hoy'          => $hoy,
+                'horaActual'   => $horaActual,
+            ], false);
+        }
     }
 
     /**
@@ -585,11 +868,15 @@ class ReservaController extends Controller {
         $observaciones = trim($post['observaciones'] ?? '');
         $esAdmin = isAdmin();
         $metodoPago = trim($post['metodo_pago'] ?? ($esAdmin ? 'efectivo' : 'yape'));
-        $metodosValidos = $esAdmin ? ['yape', 'transferencia_bcp', 'efectivo'] : ['yape', 'transferencia_bcp'];
+        $metodosValidos = $esAdmin ? ['yape', 'efectivo', 'niubiz'] : ['yape'];
         if (!in_array($metodoPago, $metodosValidos, true)) {
-            $metodoPago = $esAdmin ? 'efectivo' : 'yape';
+            sessionFlash('error', 'Método de pago no válido.', 'danger');
+            $this->redirect('/evento/crear');
+            return;
         }
-        $esEfectivoPresencial = $esAdmin && $metodoPago === 'efectivo';
+
+        $esPresencialAdmin = $esAdmin && in_array($metodoPago, ['efectivo', 'niubiz'], true);
+        $tipoCobroAdmin = trim($post['tipo_cobro'] ?? 'completo');
         $clienteNombre = '';
         $clienteId = 0;
         $contactoTelefono = trim($post['contacto_telefono'] ?? '');
@@ -646,8 +933,8 @@ class ReservaController extends Controller {
             sessionFlash('error', 'Selecciona al menos una cancha para tu evento.', 'danger');
             $this->redirect('/evento');
         }
-        if (count($canchasIds) > 5) {
-            sessionFlash('error', 'Máximo 5 canchas por evento.', 'danger');
+        if (count($canchasIds) > 6) {
+            sessionFlash('error', 'Máximo 6 canchas por evento.', 'danger');
             $this->redirect('/evento');
         }
 
@@ -668,30 +955,55 @@ class ReservaController extends Controller {
         }
 
         $modeloCancha = new Cancha();
-        $adelantoUnit = $esEfectivoPresencial ? 0 : 20;
-        // Validar disponibilidad y calcular totales (mismo horario para todas)
+        $esPagoCompletoAdmin = $esPresencialAdmin && ($tipoCobroAdmin === 'completo');
         $totalGeneral = 0;
         $items = [];
         $tsIniBase = strtotime("{$fecha} {$hora}");
         if ($tsIniBase === false) {
             sessionFlash('error', 'Hora del evento inválida.', 'danger');
             $this->redirect('/evento');
+            return;
         }
+
+        $diaSemana = (int)date('N', strtotime($fecha)); // 1=Lunes, 7=Domingo
+        $horaApertura = ($diaSemana >= 6) ? '07:00' : '09:00';
+        $horaCierre = '23:00';
+
+        if (date('H:i', $tsIniBase) < $horaApertura) {
+             sessionFlash('error', "El horario de apertura para esta fecha es {$horaApertura}.", 'danger');
+             $this->redirect('/evento/crear');
+             return;
+        }
+        $tsFin = $tsIniBase + (int)round($dur * 3600);
+        $hFinStr = date('H:i', $tsFin);
+        if ($hFinStr > $horaCierre || date('Y-m-d', $tsFin) > $fecha || $hFinStr === '00:00') {
+             sessionFlash('error', "El evento no puede terminar después de las {$horaCierre}.", 'danger');
+             $this->redirect('/evento/crear');
+             return;
+        }
+        if ($fecha === date('Y-m-d') && $tsIniBase < time()) {
+             sessionFlash('error', 'No puedes reservar en un horario que ya pasó.', 'danger');
+             $this->redirect('/evento/crear');
+             return;
+        }
+
         $horaIni = date('H:i:s', $tsIniBase);
-        $horaFin = date('H:i:s', $tsIniBase + (int)round($dur * 3600));
+        $horaFin = date('H:i:s', $tsFin);
         foreach ($canchasIds as $cid) {
             $cancha = $modeloCancha->obtenerPorId($cid);
             if (!$cancha || $cancha['estado'] !== 'disponible') {
                 sessionFlash('error', "La cancha #{$cid} no está disponible.", 'danger');
                 $this->redirect('/evento');
+                return;
             }
             if (!$modeloCancha->estaDisponible($cid, $fecha, $horaIni, $horaFin)) {
                 sessionFlash('error', "La {$cancha['nombre']} ya está ocupada el {$fecha} de {$horaIni} a {$horaFin}.", 'warning');
                 $this->redirect('/evento');
+                return;
             }
             $precio = (float)$cancha['precio_hora'];
             $total = $precio * $dur;
-            $adelanto = $esEfectivoPresencial ? $total : $adelantoUnit;
+            $adelanto = $esPagoCompletoAdmin ? $total : 20.00;
             $totalGeneral += $total;
             $items[] = [
                 'cancha' => $cancha,
@@ -703,7 +1015,7 @@ class ReservaController extends Controller {
             ];
         }
 
-        $adelantoTotal = $esEfectivoPresencial ? $totalGeneral : (count($items) * $adelantoUnit);
+        $adelantoTotal = $esPagoCompletoAdmin ? $totalGeneral : (count($items) * 20.00);
 
         // Comprobante: opcional para admin, obligatorio para cliente
         $comprobante = null;
@@ -900,7 +1212,7 @@ class ReservaController extends Controller {
         }
     }
 
-    private function isAjax(): bool {
+    protected function isAjax(): bool {
         return (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower((string)$_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
             || (isset($_SERVER['HTTP_ACCEPT']) && str_contains((string)$_SERVER['HTTP_ACCEPT'], 'application/json'));
     }
@@ -923,7 +1235,12 @@ class ReservaController extends Controller {
         }
 
         $modeloReserva = new Reserva();
-        $modeloReserva->actualizarEstado($idReserva, $nuevoEstado);
+        $grupo = $_POST['evento_grupo'] ?? null;
+        if (!empty($grupo)) {
+            $modeloReserva->actualizarEstadoGrupo($grupo, $nuevoEstado);
+        } else {
+            $modeloReserva->actualizarEstado($idReserva, $nuevoEstado);
+        }
 
         if ($this->isAjax()) {
             $this->json(['ok'=>true,'id'=>$idReserva,'estado'=>$nuevoEstado,'msg'=>"Estado actualizado a '{$nuevoEstado}'"]);
@@ -974,5 +1291,144 @@ class ReservaController extends Controller {
             'total'         => $total,
             'total_formato' => formatPrice($total)
         ]);
+    }
+
+    /**
+     * Registra el estado de asistencia y puntualidad de una reserva (Solo Admin)
+     */
+    public function registrarAsistencia(string|int $id): void {
+        $this->requireAdmin();
+
+        if (!validateCsrf()) {
+            if ($this->isAjax()) {
+                $this->json(['ok' => false, 'error' => 'Token CSRF inválido o expirado.'], 403);
+            }
+            sessionFlash('error', 'Token de seguridad inválido. Recarga la página e intenta nuevamente.', 'danger');
+            $this->redirect($_SERVER['HTTP_REFERER'] ?? '/admin/reservas');
+        }
+
+        $reservaId = (int)$id;
+        $asistenciaEstado = trim((string)($_POST['asistencia_estado'] ?? 'sin_registrar'));
+        $asistenciaHora = !empty($_POST['asistencia_hora']) ? trim((string)$_POST['asistencia_hora']) : null;
+        $asistenciaNotas = !empty($_POST['asistencia_notas']) ? trim((string)$_POST['asistencia_notas']) : null;
+        $liberarCancha = !empty($_POST['liberar_cancha']) && in_array($_POST['liberar_cancha'], ['1', 'true', 'on'], true);
+
+        $admin = currentUser();
+        $adminId = $admin ? (int)$admin['id'] : null;
+
+        $modeloReserva = new Reserva();
+        $res = $modeloReserva->registrarAsistencia(
+            $reservaId,
+            $asistenciaEstado,
+            $asistenciaHora,
+            $asistenciaNotas,
+            $adminId,
+            $liberarCancha
+        );
+
+        if (!$res['ok']) {
+            if ($this->isAjax()) {
+                $this->json($res, 400);
+            }
+            sessionFlash('error', $res['error'] ?? 'Error al registrar la asistencia.', 'danger');
+        } else {
+            if ($this->isAjax()) {
+                $this->json($res);
+            }
+            sessionFlash('mensaje', $res['mensaje'] ?? 'Asistencia actualizada correctamente.', 'success');
+        }
+
+        $this->redirect($_SERVER['HTTP_REFERER'] ?? '/admin/reservas');
+    }
+
+    /**
+     * Procesa la reprogramación de una reserva cumpliendo la política de anticipación (Solo Admin)
+     */
+    public function reprogramar(string|int $id): void {
+        $this->requireAdmin();
+
+        if (!validateCsrf()) {
+            if ($this->isAjax()) {
+                $this->json(['ok' => false, 'error' => 'Token CSRF inválido o expirado.'], 403);
+            }
+            sessionFlash('error', 'Token de seguridad inválido.', 'danger');
+            $this->redirect($_SERVER['HTTP_REFERER'] ?? '/admin/reservas');
+        }
+
+        $reservaId = (int)$id;
+        $nuevaCanchaId = (int)($_POST['cancha_id'] ?? 0);
+        $nuevaFecha = trim((string)($_POST['fecha'] ?? ''));
+        $nuevaHoraInicio = trim((string)($_POST['hora_inicio'] ?? ''));
+        $duracionHoras = (float)($_POST['duracion_horas'] ?? 1.0);
+        $motivo = trim((string)($_POST['motivo'] ?? ''));
+        $forzarFueraDePlazo = !empty($_POST['forzar_fuera_de_plazo']) && in_array($_POST['forzar_fuera_de_plazo'], ['1', 'true', 'on'], true);
+
+        if ($nuevaCanchaId <= 0 || empty($nuevaFecha) || empty($nuevaHoraInicio) || $duracionHoras <= 0) {
+            $err = 'Datos incompletos para reprogramar la reserva.';
+            if ($this->isAjax()) {
+                $this->json(['ok' => false, 'error' => $err], 400);
+            }
+            sessionFlash('error', $err, 'danger');
+            $this->redirect($_SERVER['HTTP_REFERER'] ?? '/admin/reserva/editar/' . $reservaId);
+        }
+
+        $admin = currentUser();
+        $adminId = $admin ? (int)$admin['id'] : 1;
+
+        $modeloReserva = new Reserva();
+        $res = $modeloReserva->reprogramar(
+            $reservaId,
+            $nuevaCanchaId,
+            $nuevaFecha,
+            $nuevaHoraInicio,
+            $duracionHoras,
+            $motivo,
+            $adminId,
+            $forzarFueraDePlazo
+        );
+
+        if (!$res['ok']) {
+            if ($this->isAjax()) {
+                $this->json($res, 400);
+            }
+            sessionFlash('error', $res['error'] ?? 'Error al reprogramar la reserva.', 'danger');
+            $this->redirect($_SERVER['HTTP_REFERER'] ?? '/admin/reserva/editar/' . $reservaId);
+        }
+
+        if ($this->isAjax()) {
+            $this->json($res);
+        }
+        sessionFlash('mensaje', 'Reserva reprogramada exitosamente. Verifique los nuevos detalles.', 'success');
+        $this->redirect('/admin/reserva/editar/' . $reservaId);
+    }
+
+    /**
+     * Registra el resultado del contacto previo al cliente (~30 min o seguimiento)
+     */
+    public function registrarContacto(string|int $id): void {
+        $this->requireAdmin();
+
+        if (!validateCsrf()) {
+            if ($this->isAjax()) {
+                $this->json(['ok' => false, 'error' => 'Token CSRF inválido.'], 403);
+            }
+            sessionFlash('error', 'Token de seguridad inválido.', 'danger');
+            $this->redirect($_SERVER['HTTP_REFERER'] ?? '/admin/reservas');
+        }
+
+        $reservaId = (int)$id;
+        $resultado = trim((string)($_POST['contacto_resultado'] ?? 'contacto_realizado'));
+
+        $admin = currentUser();
+        $adminId = $admin ? (int)$admin['id'] : null;
+
+        $modeloReserva = new Reserva();
+        $res = $modeloReserva->registrarContacto($reservaId, $resultado, $adminId);
+
+        if ($this->isAjax()) {
+            $this->json($res);
+        }
+        sessionFlash('mensaje', 'Contacto registrado en el historial de la reserva.', 'success');
+        $this->redirect($_SERVER['HTTP_REFERER'] ?? '/admin/reservas');
     }
 }

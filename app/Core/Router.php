@@ -106,6 +106,8 @@ class Router {
         // 1. Si viene por parámetro url desde .htaccess (y no es index.php ni vacío)
         if (!empty($_GET['url']) && $_GET['url'] !== 'index.php') {
             $uri = '/' . trim((string)$_GET['url'], '/');
+            $uri = preg_replace('#^/public(/|$)#', '$1', $uri);
+            $uri = '/' . trim($uri, '/');
             return $uri === '//' ? '/' : $uri;
         }
 

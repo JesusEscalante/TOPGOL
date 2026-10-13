@@ -8,8 +8,13 @@ declare(strict_types=1);
 $id = (int)$reserva['id'];
 $estado = (string)$reserva['estado'];
 $total = (float)$reserva['total_pago'];
-$adelanto = (float)($reserva['adelanto_monto'] ?? 20);
-$saldo = max(0, $total - $adelanto);
+
+$modeloPagoDet = new \App\Models\Pago();
+$historialPagos = $modeloPagoDet->obtenerPorReserva($id);
+$totalCobrado = $modeloPagoDet->obtenerTotalPagado($id);
+$adelanto = (float)($reserva['adelanto_monto'] ?? 20.0);
+$saldo = max(0.0, round($total - $totalCobrado, 2));
+
 $pagoEstado = (string)($reserva['pago_estado'] ?? 'pendiente');
 $metodoPago = (string)($reserva['metodo_pago'] ?? '');
 $comprobanteRuta = (string)($reserva['comprobante_ruta'] ?? '');
@@ -96,7 +101,7 @@ $puedeCancelar = in_array($estado, ['pendiente', 'confirmada'], true) && ($reser
             <span class="lbl"><span class="lbl-full">3. Confirmación</span><span class="lbl-short">Confirmación</span></span>
         </div>
     </div>
-    
+
     <!-- Encabezado -->
     <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
         <div>
@@ -159,6 +164,14 @@ $puedeCancelar = in_array($estado, ['pendiente', 'confirmada'], true) && ($reser
                                 <i class="bi bi-people-fill"></i>
                                 <span><small>N° de personas</small><strong>Hasta <?= $capacidad ?> personas</strong></span>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Banner de Puntualidad y Tolerancia -->
+                    <div class="alert alert-warning py-2 px-3 small my-3 d-flex align-items-start gap-2" style="border-radius:10px; font-size:0.78rem;">
+                        <i class="bi bi-clock-history text-warning fs-6 mt-1"></i>
+                        <div>
+                            <strong>Puntualidad Top Gol:</strong> 10 minutos de tolerancia. El tiempo corre desde las <strong><?= $horaIni ?></strong> y culmina puntualmente a las <strong><?= $horaFin ?></strong>. La tolerancia no otorga tiempo extra al final del partido.
                         </div>
                     </div>
 
@@ -261,13 +274,185 @@ $puedeCancelar = in_array($estado, ['pendiente', 'confirmada'], true) && ($reser
             </div>
         </div>
 
-        <div class="d-flex flex-wrap gap-2 mt-3">
-            <span class="pill fin" style="font-size:.72rem;"><i class="bi bi-person me-1"></i><?= htmlspecialchars($reserva['cliente_nombre'] ?? $reserva['usuario_nombre']) ?></span>
-            <span class="pill fin" style="font-size:.72rem;"><i class="bi bi-telephone me-1"></i><?= htmlspecialchars($reserva['contacto_telefono'] ?? $reserva['usuario_telefono'] ?? '—') ?></span>
-            <span class="pill <?= $pagoEstado==='verificado'?'ok':($pagoEstado==='en_revision'?'warn':'fin') ?>" style="font-size:.72rem;"><i class="bi bi-wallet2 me-1"></i><?= htmlspecialchars($metodoPago ? ucfirst($metodoPago) : '—') ?> · <?= ucfirst($pagoEstado) ?></span>
-            <?php if($comprobanteRuta): ?><a href="<?= url('/' . ltrim($comprobanteRuta, '/')) ?>" target="_blank" class="pill ok" style="font-size:.72rem; text-decoration:none;"><i class="bi bi-paperclip me-1"></i>Ver comprobante</a><?php endif; ?>
+        <?php
+            $asistVal = (string)($reserva['asistencia_estado'] ?? 'sin_registrar');
+            $asistBadgeCls = match($asistVal) {
+                'presente' => 'ok',
+                'tardanza' => 'warn',
+                'retraso_confirmado' => 'info',
+                'no_asistio' => 'bad',
+                default => 'fin'
+            };
+            $asistTexto = match($asistVal) {
+                'presente' => 'Presente',
+                'tardanza' => 'Tardanza',
+                'retraso_confirmado' => 'En camino (avisó)',
+                'no_asistio' => 'No asistió',
+                default => 'Sin registrar'
+            };
+            $waAdmin = generarEnlaceWhatsApp($reserva);
+        ?>
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3 pt-2 border-top">
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <span class="pill fin" style="font-size:.72rem;"><i class="bi bi-person me-1"></i><?= htmlspecialchars($reserva['cliente_nombre'] ?? $reserva['usuario_nombre']) ?></span>
+                <span class="pill fin" style="font-size:.72rem;"><i class="bi bi-telephone me-1"></i><?= htmlspecialchars($reserva['contacto_telefono'] ?? $reserva['usuario_telefono'] ?? '—') ?></span>
+                <span class="pill <?= $asistBadgeCls ?>" style="font-size:.72rem;"><i class="bi bi-person-check me-1"></i>Asistencia: <?= $asistTexto ?></span>
+                <span class="pill <?= $pagoEstado==='verificado'?'ok':($pagoEstado==='en_revision'?'warn':'fin') ?>" style="font-size:.72rem;"><i class="bi bi-wallet2 me-1"></i><?= htmlspecialchars($metodoPago ? ucfirst($metodoPago) : '—') ?> · <?= ucfirst($pagoEstado) ?></span>
+                <?php if($comprobanteRuta): ?><a href="<?= url('/' . ltrim($comprobanteRuta, '/')) ?>" target="_blank" class="pill ok" style="font-size:.72rem; text-decoration:none;"><i class="bi bi-paperclip me-1"></i>Ver comprobante</a><?php endif; ?>
+                <?php if ($waAdmin !== '#'): ?><a href="<?= $waAdmin ?>" target="_blank" rel="noopener" class="pill ok" style="font-size:.72rem; text-decoration:none;"><i class="bi bi-whatsapp me-1"></i>WhatsApp</a><?php endif; ?>
+                <a href="<?= url('/admin/reserva/editar/' . $id) ?>" class="pill fin" style="font-size:.72rem; text-decoration:none;"><i class="bi bi-pencil me-1"></i>Editar / Reprogramar</a>
+            </div>
+            <?php if ($saldo > 0 && $estado !== 'cancelada'): ?>
+                <button type="button" class="btn btn-success btn-sm fw-bold px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalCobroDetalle">
+                    <i class="bi bi-cash-coin me-1"></i> Cobrar Saldo (S/ <?= number_format($saldo, 2) ?>)
+                </button>
+            <?php endif; ?>
         </div>
     </div>
+
+    <!-- Historial de Pagos Registrados -->
+    <div class="det-card mt-3">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+            <h3 class="det-h3 mb-0"><i class="bi bi-receipt text-success me-2"></i>Pagos y Cobros Registrados</h3>
+            <span class="badge bg-light text-dark border">Total Pagado: S/ <?= number_format($totalCobrado, 2) ?> / S/ <?= number_format($total, 2) ?></span>
+        </div>
+        <?php if (empty($historialPagos)): ?>
+            <p class="text-muted small mb-0">No hay transacciones registradas para esta reserva.</p>
+        <?php else: ?>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0" style="font-size:0.85rem;">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Fecha/Hora</th>
+                            <th>Tipo</th>
+                            <th>Método</th>
+                            <th>Monto</th>
+                            <th>Estado</th>
+                            <th>Operador</th>
+                            <th>Notas</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($historialPagos as $p): ?>
+                            <tr>
+                                <td><?= date('d/m/Y H:i', strtotime($p['created_at'])) ?></td>
+                                <td>
+                                    <?php if ($p['tipo'] === 'adelanto'): ?>
+                                        <span class="badge bg-primary-subtle text-primary">Adelanto</span>
+                                    <?php elseif ($p['tipo'] === 'saldo'): ?>
+                                        <span class="badge bg-success-subtle text-success">Saldo</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-info-subtle text-info">Completo</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if ($p['metodo_pago'] === 'efectivo'): ?>
+                                        <span class="badge bg-success-subtle text-success"><i class="bi bi-cash me-1"></i>Efectivo</span>
+                                    <?php elseif ($p['metodo_pago'] === 'niubiz'): ?>
+                                        <span class="badge bg-primary-subtle text-primary"><i class="bi bi-credit-card me-1"></i>Niubiz POS</span>
+                                    <?php else: ?>
+                                        <span class="badge" style="background:#742284; color:#fff;"><i class="bi bi-qr-code me-1"></i>Yape</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="fw-bold text-success">S/ <?= number_format((float)$p['monto'], 2) ?></td>
+                                <td>
+                                    <?php if ($p['estado'] === 'verificado'): ?>
+                                        <span class="badge bg-success">Verificado</span>
+                                    <?php elseif ($p['estado'] === 'en_revision'): ?>
+                                        <span class="badge bg-warning text-dark">En revisión</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-danger">Rechazado</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="text-muted"><?= htmlspecialchars($p['operador_nombre'] ?? 'Sistema') ?></td>
+                                <td class="text-muted small"><?= htmlspecialchars($p['notas'] ?? '—') ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
+    </div>
+
+    <!-- Modal Registrar Cobro de Saldo -->
+    <?php if ($saldo > 0 && $estado !== 'cancelada'): ?>
+    <div class="modal fade" id="modalCobroDetalle" tabindex="-1" aria-labelledby="modalCobroDetalleLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow border-0" style="border-radius:14px; overflow:hidden;">
+                <form action="<?= url('/admin/pago/registrar') ?>" method="POST" id="formCobroDetalleModal">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="reserva_id" value="<?= $id ?>">
+                    <div class="modal-header bg-success text-white py-3">
+                        <h5 class="modal-title fw-bold" id="modalCobroDetalleLabel"><i class="bi bi-cash-stack me-2"></i>Registrar Cobro de Saldo</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <div class="alert alert-light border d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <small class="text-muted d-block">Reserva #<?= $id ?> &middot; Cancha: <?= htmlspecialchars($canchaNombre) ?></small>
+                                <strong class="fs-6 text-dark"><?= htmlspecialchars($reserva['cliente_nombre'] ?? $reserva['usuario_nombre']) ?></strong>
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted d-block">Saldo Pendiente</small>
+                                <span class="fs-5 fw-bold text-danger">S/ <?= number_format($saldo, 2) ?></span>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="modal_monto" class="form-label fw-bold small">Monto Recibido (S/) <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text fw-bold">S/</span>
+                                <input type="number" step="0.50" min="0.50" max="<?= $saldo ?>" class="form-control form-control-lg fw-bold text-success" id="modal_monto" name="monto" value="<?= number_format($saldo, 2, '.', '') ?>" required>
+                            </div>
+                            <small class="text-muted">Puedes ingresar un abono parcial o el saldo completo.</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small">Método de Cobro en Mostrador <span class="text-danger">*</span></label>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <label class="d-flex align-items-center gap-2 p-2 border rounded cursor-pointer" style="cursor:pointer; background:#f8fafc;">
+                                        <input type="radio" name="metodo_pago" value="efectivo" checked class="form-check-input mt-0">
+                                        <span class="fw-semibold text-success"><i class="bi bi-cash me-1"></i>Efectivo</span>
+                                    </label>
+                                </div>
+                                <div class="col-6">
+                                    <label class="d-flex align-items-center gap-2 p-2 border rounded cursor-pointer" style="cursor:pointer; background:#f8fafc;">
+                                        <input type="radio" name="metodo_pago" value="niubiz" class="form-check-input mt-0">
+                                        <span class="fw-semibold text-primary"><i class="bi bi-credit-card me-1"></i>Niubiz POS</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-2">
+                            <label for="modal_notas" class="form-label fw-bold small">Notas / Observación (opcional)</label>
+                            <input type="text" class="form-control" id="modal_notas" name="notas" placeholder="Ej: Pago de saldo al llegar a cancha">
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light py-2">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success fw-bold px-4" id="btnConfirmarCobroDetalle">
+                            <i class="bi bi-check2-circle me-1"></i> Confirmar Cobro
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script>
+    (function(){
+        var fCobro = document.getElementById('formCobroDetalleModal');
+        var btnCobro = document.getElementById('btnConfirmarCobroDetalle');
+        if(fCobro && btnCobro) {
+            fCobro.addEventListener('submit', function(){
+                btnCobro.disabled = true;
+                btnCobro.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Registrando...';
+            });
+        }
+    })();
+    </script>
+    <?php endif; ?>
     <script>
     (function(){
         var hint=document.getElementById('adminSaveHint');

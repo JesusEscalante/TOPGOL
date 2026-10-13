@@ -77,4 +77,32 @@ abstract class Model {
     protected function lastInsertId(): int {
         return (int)$this->db->lastInsertId();
     }
+
+    /**
+     * Inicia una transacción en la base de datos si no hay una activa
+     */
+    public function beginTransaction(): bool {
+        return !$this->db->inTransaction() ? $this->db->beginTransaction() : true;
+    }
+
+    /**
+     * Confirma la transacción activa
+     */
+    public function commit(): bool {
+        return $this->db->inTransaction() ? $this->db->commit() : true;
+    }
+
+    /**
+     * Revierte la transacción activa
+     */
+    public function rollBack(): bool {
+        return $this->db->inTransaction() ? $this->db->rollBack() : true;
+    }
+
+    /**
+     * Verifica si hay una transacción activa
+     */
+    public function inTransaction(): bool {
+        return $this->db->inTransaction();
+    }
 }

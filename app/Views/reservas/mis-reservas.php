@@ -8,7 +8,10 @@ declare(strict_types=1);
             <h1 class="det-h1">Mis reservas</h1>
             <p class="det-sub">Consulta el estado de tus reservas y administra tus próximas canchas.</p>
         </div>
-        <div class="text-md-end">
+        <div class="text-md-end d-flex justify-content-md-end flex-wrap gap-2">
+            <a href="<?= url('/mis-solicitudes') ?>" class="btn btn-outline-secondary" style="font-size: .85rem; font-weight: 600; border-radius: 9px; padding: 9px 16px;">
+                <i class="bi bi-inbox me-1"></i> Mis Solicitudes
+            </a>
             <a href="<?= url('/canchas') ?>" class="btn-nueva">
                 <i class="bi bi-plus-lg me-1"></i> Nueva reserva
             </a>

@@ -53,8 +53,8 @@ class Cancha extends Model {
      * @return int
      */
     public function crear(array $datos): int {
-        $sql = "INSERT INTO {$this->tabla} 
-                (nombre, descripcion, precio_hora, capacidad, tipo, iluminacion, techada, estado, created_at, updated_at) 
+        $sql = "INSERT INTO {$this->tabla}
+                (nombre, descripcion, precio_hora, capacidad, tipo, iluminacion, techada, estado, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
 
         $this->query($sql, [
@@ -79,16 +79,16 @@ class Cancha extends Model {
      * @return bool
      */
     public function actualizar(int $id, array $datos): bool {
-        $sql = "UPDATE {$this->tabla} SET 
-                nombre = ?, 
-                descripcion = ?, 
-                precio_hora = ?, 
-                capacidad = ?, 
-                tipo = ?, 
-                iluminacion = ?, 
-                techada = ?, 
-                estado = ?, 
-                updated_at = NOW() 
+        $sql = "UPDATE {$this->tabla} SET
+                nombre = ?,
+                descripcion = ?,
+                precio_hora = ?,
+                capacidad = ?,
+                tipo = ?,
+                iluminacion = ?,
+                techada = ?,
+                estado = ?,
+                updated_at = NOW()
                 WHERE id = ?";
 
         return $this->execute($sql, [
@@ -126,19 +126,20 @@ class Cancha extends Model {
      * @param int|null $reservaIdExcluir ID de reserva a ignorar en caso de edición
      * @return bool True si la cancha está libre para reservar
      */
-    public function estaDisponible(int $canchaId, string $fecha, string $horaInicio, string $horaFin, ?int $reservaIdExcluir = null): bool {
+    public function estaDisponible(int $canchaId, string $fecha, string $horaInicio, string $horaFin, ?int $reservaIdExcluir = null, bool $incluirDemo = false): bool {
         // Verificar primero que la cancha esté en estado disponible
         $cancha = $this->obtenerPorId($canchaId);
         if (!$cancha || $cancha['estado'] !== 'disponible') {
             return false;
         }
 
-        $sql = "SELECT COUNT(*) as traslapes FROM reservas 
-                WHERE cancha_id = ? 
-                AND fecha = ? 
-                AND estado IN ('pendiente', 'confirmada') 
-                AND hora_inicio < ? 
-                AND hora_fin > ?";
+        $whereDemo = $incluirDemo ? '' : ' AND es_demo = 0';
+        $sql = "SELECT COUNT(*) as traslapes FROM reservas
+                WHERE cancha_id = ?
+                AND fecha = ?
+                AND estado IN ('pendiente', 'confirmada')
+                AND hora_inicio < ?
+                AND hora_fin > ?{$whereDemo}";
 
         $params = [$canchaId, $fecha, $horaFin, $horaInicio];
 
@@ -179,9 +180,10 @@ class Cancha extends Model {
      * @param string $fecha Formato YYYY-MM-DD
      * @param string $horario Formato HH:MM (opcional)
      * @param string $tipo Tipo de cancha (futbol_5, futbol_7, futbol_11) (opcional)
+     * @param string $duracion Duración en minutos (opcional)
      * @return array<int, array<string, mixed>>
      */
-    public function obtenerConFiltros(string $fecha, string $horario = '', string $tipo = ''): array {
+    public function obtenerConFiltros(string $fecha, string $horario = '', string $tipo = '', string $duracion = ''): array {
         $sql = "SELECT * FROM {$this->tabla} WHERE estado = 'disponible'";
         $params = [];
 
@@ -194,15 +196,18 @@ class Cancha extends Model {
 
         $todas = $this->select($sql, $params);
 
-        // Si no hay horario, devolver todas las disponibles (filtradas por tipo si aplica)
-        if ($horario === '') {
+        // Si no hay horario o duración, devolver todas las disponibles (filtradas por tipo si aplica)
+        if ($horario === '' || $duracion === '') {
             return $todas;
         }
 
         // Filtrar por disponibilidad en el horario seleccionado
-        // Calcular hora_fin asumiendo 1 hora de duración
+        // Calcular hora_fin asumiendo duración enviada
+        $duracionMinutos = (int)$duracion;
+        if ($duracionMinutos <= 0) $duracionMinutos = 60;
+
         $horaInicio = $horario . ':00';
-        $horaFin = date('H:i:s', strtotime($horaInicio . ' +1 hour'));
+        $horaFin = date('H:i:s', strtotime($horaInicio . " +{$duracionMinutos} minutes"));
 
         $disponibles = [];
         foreach ($todas as $cancha) {
