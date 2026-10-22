@@ -240,12 +240,12 @@ for ($h = $horaApertura; $h < $horaCierre; $h++) {
 
                             <!-- Horarios disponibles -->
                             <div class="horarios-lbl">Disponibilidad</div>
-                            <div class="mb-3">
-                                <span class="badge text-bg-light border text-dark w-100 py-2 d-flex align-items-center justify-content-center" style="font-size:0.75rem;font-weight:500;">
-                                    <i class="bi bi-calendar-check me-2 text-success"></i>
-                                    Consulta fecha, hora y duración exactas para validar.
-                                </span>
-                            </div>
+                            <?php if ($disponible): ?>
+                                <?php $reservaBaseHorarios = isAdmin() ? '/reserva/crear/' : '/reserva/formulario/'; ?>
+                                <?php require __DIR__ . '/_horarios_rapidos.php'; ?>
+                            <?php else: ?>
+                                <div class="mb-3 hr-vacio" style="font-size:.78rem;color:#64748b;">Cancha en mantenimiento.</div>
+                            <?php endif; ?>
 
                             <!-- Precio -->
                             <div class="d-flex align-items-center justify-content-between mb-3">

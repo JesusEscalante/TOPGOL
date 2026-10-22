@@ -150,8 +150,26 @@ class Cancha extends Model {
 
         $resultado = $this->selectOne($sql, $params);
         $traslapes = (int)($resultado['traslapes'] ?? 0);
+        if ($traslapes > 0) {
+            return false;
+        }
 
-        return $traslapes === 0;
+        // Canchas incluidas en solicitudes de cumpleaños/reunión ya confirmadas
+        try {
+            $sqlEsp = "SELECT COUNT(*) AS traslapes
+                       FROM solicitudes_espacios_canchas sc
+                       JOIN solicitudes_espacios s ON s.id = sc.solicitud_id
+                       WHERE sc.cancha_id = ?
+                       AND s.fecha = ?
+                       AND s.estado = 'confirmado'
+                       AND s.hora_inicio < ?
+                       AND s.hora_fin > ?";
+            $resEsp = $this->selectOne($sqlEsp, [$canchaId, $fecha, $horaFin, $horaInicio]);
+            return (int)($resEsp['traslapes'] ?? 0) === 0;
+        } catch (\PDOException $e) {
+            // Migración 016 aún no aplicada: se ignora esta comprobación
+            return true;
+        }
     }
 
     /**

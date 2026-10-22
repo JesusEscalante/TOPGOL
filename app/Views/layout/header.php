@@ -43,6 +43,13 @@ $navActive = static function (string ...$rutas) use ($rutaActual): string {
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,600;0,700;0,800;0,900;1,700;1,800;1,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?= url('assets/css/style.css') ?>">
+    <style>
+        /* Menú con más enlaces: que no se corten los nombres en pantallas medianas */
+        .navbar-topgol .navbar-nav .nav-link { white-space: nowrap; }
+        @media (min-width: 992px) and (max-width: 1399px) {
+            .navbar-topgol .navbar-nav .nav-link { padding-left: .5rem; padding-right: .5rem; font-size: .88rem; }
+        }
+    </style>
 </head>
 <body>
 
@@ -79,11 +86,17 @@ $navActive = static function (string ...$rutas) use ($rutaActual): string {
                     <a class="nav-link <?= $navActive('/eventos', '/evento') ?>" href="<?= url('/eventos') ?>">Eventos</a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link <?= $navActive('/cumpleanos') ?>" href="<?= url('/cumpleanos/solicitar') ?>">Cumpleaños y reuniones</a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link <?= $navActive('/contacto') ?>" href="<?= url('/contacto') ?>">Contacto</a>
                 </li>
                 <?php if ($loggedIn && !$esAdmin): ?>
                     <li class="nav-item">
                         <a class="nav-link <?= $navActive('/mis-reservas') ?>" href="<?= url('/mis-reservas') ?>">Mis Reservas</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link <?= $navActive('/mis-solicitudes') ?>" href="<?= url('/mis-solicitudes') ?>">Mis solicitudes</a>
                     </li>
                 <?php endif; ?>
             </ul>

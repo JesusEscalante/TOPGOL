@@ -12,6 +12,7 @@ class NotificacionController extends Controller {
         $this->requireAdmin();
         $m = new Notificacion();
         $uid = (int)$_SESSION['usuario_id'];
+        session_write_close(); // ya tenemos el usuario: no bloquear la sesión mientras se consulta
         $this->json([
             'count' => $m->contarNoLeidas($uid),
             'items' => $m->listar($uid, 10)
@@ -22,7 +23,9 @@ class NotificacionController extends Controller {
         $this->requireAdmin();
         $this->validateCsrf();
         $m = new Notificacion();
-        $m->marcarLeida((int)$id, (int)$_SESSION['usuario_id']);
+        $uid = (int)$_SESSION['usuario_id'];
+        session_write_close();
+        $m->marcarLeida((int)$id, $uid);
         $this->json(['ok' => true]);
     }
 
@@ -30,7 +33,9 @@ class NotificacionController extends Controller {
         $this->requireAdmin();
         $this->validateCsrf();
         $m = new Notificacion();
-        $m->marcarTodasLeidas((int)$_SESSION['usuario_id']);
+        $uid = (int)$_SESSION['usuario_id'];
+        session_write_close();
+        $m->marcarTodasLeidas($uid);
         $this->json(['ok' => true]);
     }
 
@@ -48,6 +53,8 @@ class NotificacionController extends Controller {
         $m = new Notificacion();
         $uid = (int)$_SESSION['usuario_id'];
         $lastId = (int)($_GET['last'] ?? 0);
+        // Esta petición dura hasta 25 s: se suelta la sesión para no frenar las demás páginas del panel
+        session_write_close();
 
         // Enviar estado inicial
         $count = $m->contarNoLeidas($uid);

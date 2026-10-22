@@ -260,17 +260,33 @@ CREATE TABLE IF NOT EXISTS `solicitudes_espacios` (
   `usuario_id`        INT NOT NULL,
   `fecha`             DATE NOT NULL,
   `hora_inicio`       TIME NOT NULL,
+  `hora_fin`          TIME DEFAULT NULL,
   `duracion_horas`    DECIMAL(4,2) NOT NULL DEFAULT 1.00,
   `contacto_nombre`   VARCHAR(120) NOT NULL,
   `contacto_telefono` VARCHAR(20) NOT NULL,
   `observaciones`     TEXT DEFAULT NULL,
   `estado`            ENUM('pendiente','cotizado','confirmado','rechazado','cancelado') NOT NULL DEFAULT 'pendiente',
   `precio_cotizado`   DECIMAL(10,2) DEFAULT NULL,
+  `total_estimado`    DECIMAL(10,2) DEFAULT NULL,
   `created_at`        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at`        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   CONSTRAINT `fk_solicitudes_espacio` FOREIGN KEY (`espacio_id`) REFERENCES `espacios_eventos` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_solicitudes_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios`         (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 12b. CANCHAS OPCIONALES DE UNA SOLICITUD DE ESPACIO (migracion 016)
+CREATE TABLE IF NOT EXISTS `solicitudes_espacios_canchas` (
+  `id`           INT NOT NULL AUTO_INCREMENT,
+  `solicitud_id` INT NOT NULL,
+  `cancha_id`    INT NOT NULL,
+  `precio_hora`  DECIMAL(10,2) NOT NULL,
+  `subtotal`     DECIMAL(10,2) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_solicitud_cancha` (`solicitud_id`, `cancha_id`),
+  KEY `idx_sec_cancha` (`cancha_id`),
+  CONSTRAINT `fk_sec_solicitud` FOREIGN KEY (`solicitud_id`) REFERENCES `solicitudes_espacios` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_sec_cancha` FOREIGN KEY (`cancha_id`) REFERENCES `canchas` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ====================================================================

@@ -118,6 +118,28 @@ class TelegramNotifier
             // URL en su propia línea para que Telegram la detecte como enlace
             $texto .= "\n\n{$comp}";
         }
+        // Enlace directo a los pagos por verificar del panel (URL base de la configuración)
+        $texto .= "\n\nPagos por verificar:\n" . rtrim((string)URL_BASE, '/') . '/admin/pagos?tab=revision';
+
+        return $this->send($texto);
+    }
+
+    /**
+     * Arma y envía el aviso de una nueva solicitud de cumpleaños / reunión.
+     *
+     * @param array<string, mixed> $datos
+     * @return bool
+     */
+    public function avisarSolicitudEspacio(array $datos): bool
+    {
+        $texto = "NUEVA SOLICITUD DE CUMPLEAÑOS / REUNIÓN TOP GOL #" . (int)($datos['id'] ?? 0) . "\n"
+            . "Contacto: " . (string)($datos['cliente'] ?? '') . " " . (string)($datos['telefono'] ?? '') . "\n"
+            . "Fecha: " . (string)($datos['fecha'] ?? '') . "\n"
+            . "Horario: " . (string)($datos['hora_inicio'] ?? '') . " - " . (string)($datos['hora_fin'] ?? '') . "\n"
+            . "Canchas: " . ((string)($datos['canchas'] ?? '') !== '' ? (string)$datos['canchas'] : 'ninguna') . "\n"
+            . "Total estimado: " . (string)($datos['total'] ?? '') . " (provisional, por confirmar)"
+            // Enlace directo a la lista de solicitudes del panel (URL base de la configuración)
+            . "\n\nSolicitudes:\n" . rtrim((string)URL_BASE, '/') . '/admin/espacios';
 
         return $this->send($texto);
     }

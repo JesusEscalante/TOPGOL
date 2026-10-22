@@ -1,0 +1,9 @@
+Fotos reales para la pagina /eventos. Pon aqui estos archivos (JPG, ideal 1600 px de ancho):
+
+  cumple-1.jpg   Cumpleanos y reuniones: zona de mesas
+  cumple-2.jpg   Cumpleanos y reuniones: parrillas o ambiente
+  cumple-3.jpg   Cumpleanos y reuniones: TV grande
+  futbol-1.jpg   Futbol para grupos: las canchas
+
+Solo se muestran las fotos que existan. Si falta alguna, la pagina muestra un aviso
+discreto "Fotos proximamente" (sin cuadros vacios). Los nombres se cambian en config/eventos_textos.php.

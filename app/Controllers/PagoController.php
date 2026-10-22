@@ -24,10 +24,17 @@ class PagoController extends Controller {
     public function index(): void {
         $this->requireAdmin();
 
-        $tab = trim($_GET['tab'] ?? 'todos');
-        if (!in_array($tab, ['todos', 'revision', 'pendientes', 'pagadas', 'historial'], true)) {
-            $tab = 'todos';
+        // Pestañas de Caja: revision (Por verificar) | pendientes (Cobrar saldos) | historial (Historial de cobros)
+        $tab = trim($_GET['tab'] ?? 'revision');
+        $ver = trim($_GET['ver'] ?? '');
+        if ($tab === 'pagadas') { // enlace antiguo: ahora es un filtro del historial
+            $tab = 'historial';
+            $ver = 'pagadas';
         }
+        if (!in_array($tab, ['revision', 'pendientes', 'historial'], true)) {
+            $tab = 'revision';
+        }
+        $ver = ($tab === 'historial' && $ver === 'pagadas') ? 'pagadas' : '';
 
         $busqueda = trim($_GET['q'] ?? '');
         $filtroMetodo = trim($_GET['metodo'] ?? '');
@@ -42,6 +49,7 @@ class PagoController extends Controller {
 
         $todasReservas = $modeloReserva->obtenerTodas($incluirDemo);
         $estadisticas = $modeloReserva->obtenerEstadisticas($incluirDemo);
+        $montosRevision = $modeloPago->montosEnRevision();
 
         // Agrupar reservas para eventos y calcular saldos en tiempo real
         $grupos = [];
@@ -70,8 +78,10 @@ class PagoController extends Controller {
                     'saldo_pendiente'   => 0.0,
                     'canchas'           => [],
                     'reservas_ids'      => [],
+                    'monto_revision'    => 0.0,
                 ];
             }
+            $grupos[$k]['monto_revision'] += (float)($montosRevision[(int)$r['id']] ?? 0.0);
             $grupos[$k]['total_pago'] += (float)$r['total_pago'];
             $grupos[$k]['adelanto_monto'] += (float)$r['adelanto_monto'];
             $grupos[$k]['total_pagado'] += (float)($r['total_pagado'] ?? 0.0);
@@ -88,7 +98,7 @@ class PagoController extends Controller {
         }
 
         // Filtrar según pestaña seleccionada
-        $items = array_values(array_filter($grupos, function ($item) use ($tab, $busqueda, $filtroMetodo) {
+        $items = array_values(array_filter($grupos, function ($item) use ($tab, $ver, $busqueda, $filtroMetodo) {
             // Filtro de búsqueda
             if ($busqueda !== '') {
                 $q = mb_strtolower($busqueda);
@@ -104,11 +114,11 @@ class PagoController extends Controller {
             }
 
             // Filtro por pestaña
+            // Criterios únicos (helpers): los mismos de pestañas, tarjetas y contadores
             return match ($tab) {
-                'revision'   => ($item['pago_estado'] === 'en_revision'),
-                'pendientes' => ($item['estado'] !== 'cancelada' && $item['saldo_pendiente'] > 0.0),
-                'pagadas'    => ($item['estado'] !== 'cancelada' && $item['saldo_pendiente'] <= 0.0 && $item['total_pagado'] > 0.0),
-                default      => true,
+                'revision'   => pagoEsPorVerificar($item),
+                'pendientes' => pagoTieneSaldoPorCobrar($item),
+                default      => $ver === 'pagadas' ? pagoEstaPagadaCompleta($item) : true,
             };
         }));
 
@@ -127,14 +137,18 @@ class PagoController extends Controller {
         $cajaHoy = $modeloPago->obtenerResumenCaja($hoy, $incluirDemo);
 
         // Contadores para pestañas
-        $conteoRevision = count(array_filter($grupos, static fn($g) => $g['pago_estado'] === 'en_revision'));
-        $conteoPendientes = count(array_filter($grupos, static fn($g) => $g['estado'] !== 'cancelada' && $g['saldo_pendiente'] > 0.0));
-        $conteoPagadas = count(array_filter($grupos, static fn($g) => $g['estado'] !== 'cancelada' && $g['saldo_pendiente'] <= 0.0 && $g['total_pagado'] > 0.0));
+        $gruposRevision = array_filter($grupos, 'pagoEsPorVerificar');
+        $gruposSaldo = array_filter($grupos, 'pagoTieneSaldoPorCobrar');
+        $conteoRevision = count($gruposRevision);
+        $conteoPendientes = count($gruposSaldo);
+        $montoPendiente = round(array_sum(array_column($gruposSaldo, 'saldo_pendiente')), 2);
+        $conteoPagadas = count(array_filter($grupos, 'pagoEstaPagadaCompleta'));
 
         $this->view('pagos/index', [
             'titulo'                 => 'Control de Pagos y Caja - ' . APP_NAME,
             'adminMenu'              => 'pagos',
             'tab'                    => $tab,
+            'ver'                    => $ver,
             'busqueda'               => $busqueda,
             'filtroMetodo'           => $filtroMetodo,
             'items'                  => $items,
@@ -144,6 +158,7 @@ class PagoController extends Controller {
             'conteoRevision'         => $conteoRevision,
             'conteoPendientes'       => $conteoPendientes,
             'conteoPagadas'          => $conteoPagadas,
+            'montoPendiente'         => $montoPendiente,
             'incluirDemo'            => $incluirDemo,
         ], false);
     }
@@ -215,7 +230,9 @@ class PagoController extends Controller {
         }
 
         if ($resultado['ok']) {
-            $metodoLbl = $metodo === 'niubiz' ? 'Niubiz POS' : 'Efectivo';
+            $metodoLbl = $metodo === 'niubiz' ? 'Niubiz POS' : ($metodo === 'yape' ? 'Yape' : 'Efectivo');
+            // Regla de cierre: si ya asistió y el saldo quedó en cero, la reserva pasa a finalizada
+            (new Reserva())->sincronizarFinalizacionGrupoOId($idReserva, $grupo !== '' ? $grupo : null);
             $msg = !empty($grupo)
                 ? "Cobro de saldo de S/ " . number_format($monto, 2) . " ({$metodoLbl}) registrado para el evento grupal."
                 : "Cobro de saldo de S/ " . number_format($monto, 2) . " ({$metodoLbl}) registrado con éxito para la reserva #{$idReserva}.";
@@ -244,13 +261,16 @@ class PagoController extends Controller {
 
         if (!empty($grupo)) {
             $ok = $modeloReserva->actualizarEstadoPagoGrupo($grupo, 'verificado', $adminId);
+            $horarioTomado = false;
             if ($ok) {
-                $modeloReserva->actualizarEstadoGrupo($grupo, 'confirmada');
+                $horarioTomado = !$modeloReserva->actualizarEstadoGrupo($grupo, 'confirmada') && $modeloReserva->ultimoCodigo === 'ocupado';
             }
         } else {
             $ok = $modeloReserva->actualizarEstadoPago($idReserva, 'verificado', $adminId);
+            $horarioTomado = false;
             if ($ok) {
-                $modeloReserva->actualizarEstado($idReserva, 'confirmada');
+                // Si la reserva estaba cancelada, solo se reactiva cuando su horario sigue libre
+                $horarioTomado = !$modeloReserva->actualizarEstado($idReserva, 'confirmada') && $modeloReserva->ultimoCodigo === 'ocupado';
             }
         }
 
@@ -262,7 +282,9 @@ class PagoController extends Controller {
             }
         }
 
-        if ($ok) {
+        if ($ok && $horarioTomado) {
+            sessionFlash('error', 'El pago quedó verificado, pero ese horario ya fue tomado por otra reserva: la reserva sigue cancelada.', 'warning');
+        } elseif ($ok) {
             sessionFlash('success', "Comprobante verificado y reserva confirmada exitosamente.", 'success');
         } else {
             sessionFlash('error', "No se pudo verificar el comprobante.", 'danger');
@@ -283,6 +305,15 @@ class PagoController extends Controller {
         $idReserva = (int)$id;
         $adminId = (int)$_SESSION['usuario_id'];
         $grupo = trim((string)($_POST['evento_grupo'] ?? ''));
+        $motivo = trim((string)($_POST['motivo'] ?? ''));
+
+        // El rechazo cancela la reserva: el motivo es obligatorio y queda en las observaciones de la reserva
+        if (mb_strlen($motivo) < 3) {
+            if ($this->isAjax()) { $this->json(['ok' => false, 'error' => 'Escribe el motivo del rechazo.'], 400); }
+            sessionFlash('error', 'Escribe el motivo del rechazo para poder rechazar el comprobante.', 'warning');
+            $this->redirect($_SERVER['HTTP_REFERER'] ?? '/admin/pagos');
+            return;
+        }
 
         $modeloReserva = new Reserva();
 
@@ -296,6 +327,9 @@ class PagoController extends Controller {
             if ($ok) {
                 $modeloReserva->actualizarEstado($idReserva, 'cancelada');
             }
+        }
+        if ($ok) {
+            $modeloReserva->agregarObservacion($idReserva, $grupo, 'Pago rechazado: ' . $motivo);
         }
 
         if ($this->isAjax()) {

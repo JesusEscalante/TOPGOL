@@ -181,6 +181,7 @@ class ProductoController extends Controller {
      */
     public function delete(string|int $id): void {
         $this->requireAdmin();
+        $this->soloPost('/admin/productos', 'Para eliminar un producto usa el botón de la lista: abrir el enlace ya no ejecuta la acción.');
         $this->validateCsrf();
 
         $idProducto = (int)$id;
@@ -236,12 +237,14 @@ class ProductoController extends Controller {
         ], 100);
 
         $productos = $modeloProd->obtenerTodos();
+        $stockBajo = $modeloProd->obtenerStockCritico(50);
 
         $this->view('productos/inventario', [
             'titulo'      => 'Control de Inventario y Kardex - Panel Administrador',
             'adminMenu'   => 'inventario',
             'movimientos' => $movimientos,
             'productos'   => $productos,
+            'stockBajo'   => $stockBajo,
             'filtroProd'  => $productoId,
             'filtroTipo'  => $tipo,
             'filtroFecha' => $fecha,

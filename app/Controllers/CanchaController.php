@@ -52,10 +52,14 @@ class CanchaController extends Controller {
             $slotsOcupados[(int)$c['id']] = $modeloReserva->obtenerSlotsOcupados((int)$c['id'], $fecha);
         }
 
+        // Próximos horarios libres de hoy/mañana: una sola consulta para todas las canchas
+        $horariosLibres = $modeloReserva->proximosHorariosLibres(array_map(static fn($c) => (int)$c['id'], $canchas));
+
         $this->view('canchas/index', [
             'titulo'        => 'Nuestras Canchas - ' . APP_NAME,
             'canchas'       => $canchas,
             'slotsOcupados' => $slotsOcupados,
+            'horariosLibres' => $horariosLibres,
             'filtros'       => [
                 'fecha'    => $fecha,
                 'horario'  => $horario,
@@ -233,6 +237,8 @@ class CanchaController extends Controller {
      */
     public function delete(string|int $id): void {
         $this->requireAdmin();
+        $this->soloPost('/canchas', 'Para eliminar una cancha usa el botón "Eliminar" de la lista: abrir el enlace ya no ejecuta la acción.');
+        $this->validateCsrf();
         $idCancha = (int)$id;
         $modeloCancha = new Cancha();
 

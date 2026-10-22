@@ -148,18 +148,18 @@ $tipoFormateado = $tipoLabels[$filtros['tipo']] ?? '';
                                     </span>
                                 <?php endif; ?>
                             </div>
-                            <div class="mb-3">
-                                <?php if ($filtros['horario'] && $filtros['duracion']): ?>
+                            <?php if ($filtros['horario'] && $filtros['duracion']): ?>
+                                <div class="mb-3">
                                     <span class="badge text-bg-light border text-dark w-100 py-2 d-flex align-items-center justify-content-center" style="font-size:0.75rem;font-weight:500;">
                                         Disponible para tu reserva de <?= $filtros['duracion'] ?> min.
                                     </span>
-                                <?php else: ?>
-                                    <span class="badge text-bg-light border text-dark w-100 py-2 d-flex align-items-center justify-content-center" style="font-size:0.75rem;font-weight:500;">
-                                        <i class="bi bi-calendar-check me-2 text-success"></i>
-                                        Consulta fecha, hora y duración exactas para validar.
-                                    </span>
-                                <?php endif; ?>
-                            </div>
+                                </div>
+                            <?php elseif ($disponible): ?>
+                                <?php $reservaBaseHorarios = isAdmin() ? '/reserva/crear/' : '/reserva/formulario/'; ?>
+                                <?php require __DIR__ . '/../home/_horarios_rapidos.php'; ?>
+                            <?php else: ?>
+                                <div class="mb-3" style="font-size:.78rem;color:#64748b;">Cancha en mantenimiento.</div>
+                            <?php endif; ?>
 
                             <!-- Acciones -->
                             <div class="d-grid gap-2">
@@ -180,9 +180,12 @@ $tipoFormateado = $tipoLabels[$filtros['tipo']] ?? '';
                                             </a>
                                         </div>
                                         <div class="col-md-6 d-flex gap-2 mt-1">
-                                            <a href="<?= url('/cancha/eliminar/' . $cancha['id']) ?>" class="btn btn-sm btn-outline-danger w-100 btn-confirmar-eliminar" style="border-radius:7px;font-size:0.75rem;font-weight:600;" data-confirm="Eliminar '<?= htmlspecialchars($cancha['nombre']) ?>'?">
-                                                <i class="bi bi-trash me-1"></i>Eliminar
-                                            </a>
+                                            <form action="<?= url('/cancha/eliminar/' . $cancha['id']) ?>" method="POST" class="w-100" onsubmit="return confirm('¿Seguro que quieres eliminar la cancha &quot;<?= htmlspecialchars($cancha['nombre'], ENT_QUOTES) ?>&quot;? Esta acción no se puede deshacer.');">
+                                                <?= csrf_field() ?>
+                                                <button type="submit" class="btn btn-sm btn-outline-danger w-100" style="border-radius:7px;font-size:0.75rem;font-weight:600;">
+                                                    <i class="bi bi-trash me-1"></i>Eliminar
+                                                </button>
+                                            </form>
                                         </div>
                                     </div>
                                 <?php endif; ?>

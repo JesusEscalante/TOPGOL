@@ -73,7 +73,7 @@ $inicialPerfil = mb_strtoupper(mb_substr((string)$usuario['nombre'], 0, 1));
                                     <label for="telefono" class="form-label fw-semibold" style="font-size:.8rem;">Número de contacto (celular / WhatsApp)</label>
                                     <div class="input-group">
                                         <span class="input-group-text" style="background:#f8fafc; font-weight:700; color:#334155; border-color:#e2e8f0;">+51</span>
-                                        <input type="tel" class="form-control" id="telefono" name="telefono" value="<?= htmlspecialchars(preg_replace('/^\+51\s*/', '', (string)($usuario['telefono'] ?? ''))) ?>" placeholder="987 654 321">
+                                        <input type="tel" class="form-control" id="telefono" name="telefono" value="<?= htmlspecialchars(preg_replace('/^\+51\s*/', '', (string)($usuario['telefono'] ?? ''))) ?>" placeholder="9XX XXX XXX">
                                     </div>
                                 </div>
                             </div>

@@ -18,6 +18,10 @@ declare(strict_types=1);
         </div>
     </div>
 
+    <?php if (array_filter($reservas ?? [], static fn($r) => ($r['pago_estado'] ?? '') === 'en_revision')): ?>
+        <?php require __DIR__ . '/_verificacion.php'; ?>
+    <?php endif; ?>
+
     <?php if (empty($reservas)): ?>
         <div class="det-card text-center p-5 my-4">
             <div class="mb-3">
@@ -73,11 +77,11 @@ declare(strict_types=1);
                                     <i class="bi bi-clock text-secondary me-1"></i>
                                     <?= date('h:i A', strtotime($r['hora_inicio'])) ?> - <?= date('h:i A', strtotime($r['hora_fin'])) ?>
                                 </td>
-                                <td><?php $dh=(float)$r['duracion_horas']; echo $dh==0.5 ? '30 minutos' : ($dh==1 ? '1 hora' : rtrim(rtrim(number_format($dh,1), '0'), '.') . ' horas'); ?></td>
+                                <td><?= htmlspecialchars(formatoDuracionHoras((float)$r['duracion_horas'])) ?></td>
                                 <td class="fw-bold text-success"><?= formatPrice($r['total_pago']) ?></td>
                                 <td>
                                     <span class="pill <?= $estadoCls ?>">
-                                        <?= ucfirst($r['estado']) ?>
+                                        <?= match ((string)$r['estado']) { 'confirmada' => 'Confirmada', 'pendiente' => 'Pendiente', 'cancelada' => 'Cancelada', 'finalizada' => 'Completada', default => ucfirst((string)$r['estado']) } ?>
                                     </span>
                                 </td>
                                 <td class="text-end pe-3" style="white-space:nowrap;">
@@ -85,9 +89,12 @@ declare(strict_types=1);
                                         <i class="bi bi-eye me-1"></i> Ver detalle
                                     </a>
                                     <?php if ($puedeCancelar): ?>
-                                        <a href="<?= url('/reserva/cancelar/' . $r['id']) ?>" class="btn-ver danger btn-confirmar-eliminar" data-confirm="¿Deseas cancelar la reserva #<?= $r['id'] ?> para la <?= htmlspecialchars($r['cancha_nombre']) ?>?">
-                                            <i class="bi bi-x-circle me-1"></i> Cancelar
-                                        </a>
+                                        <form action="<?= url('/reserva/cancelar/' . $r['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('¿Seguro que deseas cancelar la reserva #<?= (int)$r['id'] ?> de la <?= htmlspecialchars($r['cancha_nombre'], ENT_QUOTES) ?>?');">
+                                            <?= csrf_field() ?>
+                                            <button type="submit" class="btn-ver danger" style="border:0; background:none;">
+                                                <i class="bi bi-x-circle me-1"></i> Cancelar
+                                            </button>
+                                        </form>
                                     <?php endif; ?>
                                 </td>
                             </tr>

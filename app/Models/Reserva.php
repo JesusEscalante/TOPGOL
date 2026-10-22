@@ -95,7 +95,7 @@ class Reserva extends Model {
      */
     public function crear(array $datos): int {
         $metodoPago = $datos['metodo_pago'] ?? null;
-        if (!in_array($metodoPago, ['yape', 'transferencia_bcp', 'efectivo', 'niubiz'], true)) {
+        if (!in_array($metodoPago, ['yape', 'efectivo', 'niubiz'], true)) {
             $metodoPago = null;
         }
 
@@ -221,7 +221,7 @@ class Reserva extends Model {
         }
 
         if ($estado === 'verificado') {
-            $sql = "UPDATE {$this->tabla} SET pago_estado = ?, estado = 'confirmada', pago_verificado_at = NOW(), pago_verificado_por = ?, updated_at = NOW() WHERE id = ?";
+            $sql = "UPDATE {$this->tabla} SET pago_estado = ?, estado = IF(estado = 'cancelada', estado, 'confirmada'), pago_verificado_at = NOW(), pago_verificado_por = ?, updated_at = NOW() WHERE id = ?";
             $res = $this->execute($sql, [$estado, $verificadoPor, $id]);
         } elseif ($estado === 'rechazado') {
             $sql = "UPDATE {$this->tabla} SET pago_estado = ?, estado = 'cancelada', updated_at = NOW() WHERE id = ?";
@@ -251,7 +251,7 @@ class Reserva extends Model {
         }
 
         if ($estado === 'verificado') {
-            $sql = "UPDATE {$this->tabla} SET pago_estado = ?, estado = 'confirmada', pago_verificado_at = NOW(), pago_verificado_por = ?, updated_at = NOW() WHERE evento_grupo = ?";
+            $sql = "UPDATE {$this->tabla} SET pago_estado = ?, estado = IF(estado = 'cancelada', estado, 'confirmada'), pago_verificado_at = NOW(), pago_verificado_por = ?, updated_at = NOW() WHERE evento_grupo = ?";
             $res = $this->execute($sql, [$estado, $verificadoPor, $grupo]);
         } elseif ($estado === 'rechazado') {
             $sql = "UPDATE {$this->tabla} SET pago_estado = ?, estado = 'cancelada', updated_at = NOW() WHERE evento_grupo = ?";
@@ -277,6 +277,13 @@ class Reserva extends Model {
     public function actualizarEstadoGrupo(string $grupo, string $estado): bool {
         if (!in_array($estado, ['pendiente', 'confirmada', 'cancelada', 'finalizada'], true)) {
             return false;
+        }
+        $this->ultimoCodigo = null;
+        if (in_array($estado, ['pendiente', 'confirmada'], true)) {
+            $canceladas = $this->select("SELECT id FROM {$this->tabla} WHERE evento_grupo = ? AND estado = 'cancelada'", [$grupo]);
+            if (!empty($canceladas)) {
+                return $this->reactivarAtomico(array_map(static fn($f) => (int)$f['id'], $canceladas), $estado, $grupo);
+            }
         }
         $sql = "UPDATE {$this->tabla} SET estado = ?, updated_at = NOW() WHERE evento_grupo = ?";
         return $this->execute($sql, [$estado, $grupo]);
@@ -309,8 +316,275 @@ class Reserva extends Model {
      * @return bool
      */
     public function actualizarEstado(int $id, string $estado): bool {
+        $this->ultimoCodigo = null;
+        // Reactivar una reserva cancelada solo si su horario sigue libre (la cancelada ya liberó la cancha)
+        if (in_array($estado, ['pendiente', 'confirmada'], true)) {
+            $actual = $this->selectOne("SELECT estado FROM {$this->tabla} WHERE id = ?", [$id]);
+            if ($actual && $actual['estado'] === 'cancelada') {
+                return $this->reactivarAtomico([$id], $estado);
+            }
+        }
         $sql = "UPDATE {$this->tabla} SET estado = ?, updated_at = NOW() WHERE id = ?";
         return $this->execute($sql, [$estado, $id]);
+    }
+
+    // ------------------------------------------------------------------
+    //  RESERVA ATÓMICA: evita que dos clientes tomen la misma cancha a la vez
+    // ------------------------------------------------------------------
+
+    /** Último motivo de fallo de una operación atómica: 'ocupado' | 'cancha_no_disponible' | 'error' | null */
+    public ?string $ultimoCodigo = null;
+    /** Cancha que provocó el choque (si aplica) */
+    public ?int $ultimaCancha = null;
+
+    /**
+     * Bloquea las canchas indicadas con SELECT ... FOR UPDATE, SIEMPRE en orden ascendente de id
+     * (así dos procesos que piden varias canchas nunca se bloquean entre sí en cruz).
+     * Debe llamarse dentro de una transacción.
+     *
+     * @param array<int, int> $ids
+     * @return array<int, array<string, mixed>> Filas de las canchas bloqueadas (id, estado)
+     */
+    public function bloquearCanchas(array $ids): array {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        sort($ids, SORT_NUMERIC);
+        if (empty($ids)) {
+            return [];
+        }
+        $in = implode(',', array_fill(0, count($ids), '?'));
+        return $this->select("SELECT id, estado FROM canchas WHERE id IN ({$in}) ORDER BY id ASC FOR UPDATE", $ids);
+    }
+
+    /**
+     * ¿Hay choque en esa cancha e intervalo? Usa lecturas actuales (FOR UPDATE), por eso es fiable
+     * dentro de la transacción. Una reserva que termina justo cuando empieza otra NO choca.
+     * Cuentan las reservas pendientes/confirmadas (las canceladas liberan) y las canchas incluidas
+     * en solicitudes de cumpleaños/reunión ya confirmadas.
+     */
+    public function hayChoque(int $canchaId, string $fecha, string $horaInicio, string $horaFin, ?int $excluirId = null, bool $incluirDemo = false, ?int $excluirSolicitudId = null): bool {
+        if (strlen($horaInicio) === 5) { $horaInicio .= ':00'; }
+        if (strlen($horaFin) === 5) { $horaFin .= ':00'; }
+        if ($horaFin === '00:00:00') { $horaFin = '24:00:00'; }
+
+        $sql = "SELECT id FROM {$this->tabla}
+                WHERE cancha_id = ? AND fecha = ?
+                  AND estado IN ('pendiente', 'confirmada')
+                  AND hora_inicio < ?
+                  AND IF(hora_fin = '00:00:00', '24:00:00', hora_fin) > ?";
+        $params = [$canchaId, $fecha, $horaFin, $horaInicio];
+        if (!$incluirDemo) {
+            $sql .= ' AND es_demo = 0';
+        }
+        if ($excluirId !== null) {
+            $sql .= ' AND id != ?';
+            $params[] = $excluirId;
+        }
+        $sql .= ' LIMIT 1 FOR UPDATE';
+        if (!empty($this->select($sql, $params))) {
+            return true;
+        }
+
+        try {
+            $sqlEsp = "SELECT sc.id FROM solicitudes_espacios_canchas sc
+                       JOIN solicitudes_espacios s ON s.id = sc.solicitud_id
+                       WHERE sc.cancha_id = ? AND s.fecha = ? AND s.estado = 'confirmado'
+                         AND s.hora_inicio < ? AND s.hora_fin > ?";
+            $paramsEsp = [$canchaId, $fecha, $horaFin, $horaInicio];
+            if ($excluirSolicitudId !== null) {
+                $sqlEsp .= ' AND s.id != ?';
+                $paramsEsp[] = $excluirSolicitudId;
+            }
+            return !empty($this->select($sqlEsp . ' LIMIT 1 FOR UPDATE', $paramsEsp));
+        } catch (\PDOException $e) {
+            return false; // migración 016 aún no aplicada
+        }
+    }
+
+    /**
+     * FUNCIÓN CENTRAL: crea una o varias reservas (y su pago inicial) de forma atómica.
+     * Abre transacción, bloquea las canchas (orden ascendente), vuelve a comprobar el solapamiento
+     * DENTRO de la transacción, guarda todo y confirma. Si algo falla: rollback completo
+     * (en eventos de varias canchas: todo o nada).
+     *
+     * @param array<int, array<string, mixed>> $lista Datos de cada reserva (los mismos de crear())
+     * @return array{ok: bool, ids: array<int, int>, codigo: ?string, cancha_id: ?int, error: ?string}
+     */
+    public function crearAtomico(array $lista): array {
+        $this->ultimoCodigo = null;
+        $this->ultimaCancha = null;
+        $fallo = function (string $codigo, ?int $cancha, ?string $msg = null): array {
+            $this->ultimoCodigo = $codigo;
+            $this->ultimaCancha = $cancha;
+            return ['ok' => false, 'ids' => [], 'codigo' => $codigo, 'cancha_id' => $cancha, 'error' => $msg];
+        };
+        if (empty($lista)) {
+            return $fallo('error', null, 'No hay reservas para guardar.');
+        }
+        if ($this->inTransaction()) {
+            return $fallo('error', null, 'Ya hay una transacción abierta.');
+        }
+
+        $this->beginTransaction();
+        try {
+            $bloqueadas = $this->bloquearCanchas(array_map(static fn($d) => (int)$d['cancha_id'], $lista));
+            $estados = [];
+            foreach ($bloqueadas as $c) { $estados[(int)$c['id']] = (string)$c['estado']; }
+
+            foreach ($lista as $d) {
+                $cid = (int)$d['cancha_id'];
+                if (($estados[$cid] ?? '') !== 'disponible') {
+                    $this->rollBack();
+                    return $fallo('cancha_no_disponible', $cid);
+                }
+                if ($this->hayChoque($cid, (string)$d['fecha'], (string)$d['hora_inicio'], (string)$d['hora_fin'])) {
+                    $this->rollBack();
+                    return $fallo('ocupado', $cid);
+                }
+            }
+
+            $ids = [];
+            foreach ($lista as $d) {
+                $id = $this->crear($d);
+                if ($id <= 0) {
+                    $this->rollBack();
+                    return $fallo('error', (int)$d['cancha_id'], 'No se pudo guardar la reserva.');
+                }
+                $ids[] = $id;
+            }
+            $this->commit();
+            return ['ok' => true, 'ids' => $ids, 'codigo' => null, 'cancha_id' => null, 'error' => null];
+        } catch (\Throwable $e) {
+            $this->rollBack();
+            return $fallo('error', null, $e->getMessage());
+        }
+    }
+
+    /**
+     * Cambia cancha / fecha / hora de una reserva existente sin chocar con otras (excluyendo la propia).
+     * Misma lógica atómica: transacción + bloqueo de la cancha destino + nueva comprobación.
+     *
+     * @param array<string, mixed> $datos Los mismos campos de actualizarReserva()
+     * @return array{ok: bool, codigo: ?string, error: ?string}
+     */
+    public function actualizarReservaAtomica(int $id, array $datos, bool $revisarChoque = true): array {
+        $this->ultimoCodigo = null;
+        if ($this->inTransaction()) {
+            return ['ok' => false, 'codigo' => 'error', 'error' => 'Ya hay una transacción abierta.'];
+        }
+        $this->beginTransaction();
+        try {
+            $this->bloquearCanchas([(int)$datos['cancha_id']]);
+            $this->select("SELECT id FROM {$this->tabla} WHERE id = ? FOR UPDATE", [$id]);
+            if ($revisarChoque && $this->hayChoque((int)$datos['cancha_id'], (string)$datos['fecha'], (string)$datos['hora_inicio'], (string)$datos['hora_fin'], $id)) {
+                $this->rollBack();
+                $this->ultimoCodigo = 'ocupado';
+                $this->ultimaCancha = (int)$datos['cancha_id'];
+                return ['ok' => false, 'codigo' => 'ocupado', 'error' => null];
+            }
+            $this->actualizarReserva($id, $datos); // devuelve false si no cambió ningún valor: no es un error
+            $this->commit();
+            return ['ok' => true, 'codigo' => null, 'error' => null];
+        } catch (\Throwable $e) {
+            $this->rollBack();
+            $this->ultimoCodigo = 'error';
+            return ['ok' => false, 'codigo' => 'error', 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Reactiva reservas canceladas (pendiente/confirmada) solo si su horario sigue libre.
+     * Se usa en actualizarEstado() y actualizarEstadoGrupo(): una cancelada ya liberó la cancha.
+     *
+     * @param array<int, int> $revivir IDs de reservas canceladas que se quieren reactivar
+     */
+    private function reactivarAtomico(array $revivir, string $estado, ?string $grupo = null): bool {
+        $this->ultimoCodigo = null;
+        if ($this->inTransaction()) {
+            return false;
+        }
+        $this->beginTransaction();
+        try {
+            $in = implode(',', array_fill(0, count($revivir), '?'));
+            $filas = $this->select("SELECT id, cancha_id, fecha, hora_inicio, hora_fin FROM {$this->tabla} WHERE id IN ({$in})", $revivir);
+            $this->bloquearCanchas(array_map(static fn($f) => (int)$f['cancha_id'], $filas));
+            foreach ($filas as $f) {
+                if ($this->hayChoque((int)$f['cancha_id'], (string)$f['fecha'], (string)$f['hora_inicio'], (string)$f['hora_fin'], (int)$f['id'])) {
+                    $this->rollBack();
+                    $this->ultimoCodigo = 'ocupado';
+                    $this->ultimaCancha = (int)$f['cancha_id'];
+                    return false;
+                }
+            }
+            if (!empty($grupo)) {
+                $ok = $this->execute("UPDATE {$this->tabla} SET estado = ?, updated_at = NOW() WHERE evento_grupo = ?", [$estado, $grupo]);
+            } else {
+                $ok = $this->execute("UPDATE {$this->tabla} SET estado = ?, updated_at = NOW() WHERE id = ?", [$estado, $revivir[0]]);
+            }
+            $this->commit();
+            return $ok;
+        } catch (\Throwable $e) {
+            $this->rollBack();
+            $this->ultimoCodigo = 'error';
+            return false;
+        }
+    }
+
+    /**
+     * Guarda el motivo de una cancelación hecha por el administrador (en la nota de asistencia).
+     * Si recibe un grupo (evento), lo guarda en todas sus reservas.
+     */
+    public function guardarMotivoCancelacion(int $id, ?string $grupo, string $motivo, ?int $adminId = null): bool {
+        $nota = 'Cancelada: ' . mb_substr(trim($motivo), 0, 300);
+        if (!empty($grupo)) {
+            $sql = "UPDATE {$this->tabla} SET asistencia_notas = ?, asistencia_registrada_por = ?, asistencia_updated_at = NOW(), updated_at = NOW() WHERE evento_grupo = ?";
+            return $this->execute($sql, [$nota, $adminId, $grupo]);
+        }
+        $sql = "UPDATE {$this->tabla} SET asistencia_notas = ?, asistencia_registrada_por = ?, asistencia_updated_at = NOW(), updated_at = NOW() WHERE id = ?";
+        return $this->execute($sql, [$nota, $adminId, $id]);
+    }
+
+    /**
+     * Regla de cierre: una reserva CONFIRMADA pasa a FINALIZADA cuando el cliente asistió
+     * (presente o tardanza), el saldo está en cero y ya pasó la hora de fin.
+     * Se revisa al registrar asistencia, al cobrar saldo y al abrir el detalle del administrador.
+     *
+     * @return bool True si la reserva quedó finalizada en esta llamada
+     */
+    public function sincronizarFinalizacion(int $id): bool {
+        $r = $this->obtenerPorId($id);
+        if (!$r || $r['estado'] !== 'confirmada') {
+            return false;
+        }
+        if (!in_array((string)($r['asistencia_estado'] ?? 'sin_registrar'), ['presente', 'tardanza'], true)) {
+            return false;
+        }
+        $tz = new \DateTimeZone('America/Lima');
+        $ini = new \DateTime((string)$r['fecha'] . ' ' . (string)$r['hora_inicio'], $tz);
+        $fin = new \DateTime((string)$r['fecha'] . ' ' . (string)$r['hora_fin'], $tz);
+        if ($fin <= $ini) {
+            $fin->modify('+1 day');
+        }
+        if (new \DateTime('now', $tz) < $fin) {
+            return false;
+        }
+        $pagado = (new Pago())->obtenerTotalPagado($id);
+        if (round((float)$r['total_pago'] - $pagado, 2) > 0.0) {
+            return false;
+        }
+        return $this->actualizarEstado($id, 'finalizada');
+    }
+
+    /**
+     * Aplica sincronizarFinalizacion() a una reserva o a todas las de un grupo (evento).
+     */
+    public function sincronizarFinalizacionGrupoOId(int $id, ?string $grupo = null): void {
+        if (!empty($grupo)) {
+            foreach ($this->select("SELECT id FROM {$this->tabla} WHERE evento_grupo = ?", [$grupo]) as $fila) {
+                $this->sincronizarFinalizacion((int)$fila['id']);
+            }
+            return;
+        }
+        $this->sincronizarFinalizacion($id);
     }
 
     /**
@@ -366,12 +640,29 @@ class Reserva extends Model {
     public function cancelar(int $id, int $usuarioId, bool $esAdmin = false): bool {
         if ($esAdmin) {
             $sql = "UPDATE {$this->tabla} SET estado = 'cancelada', updated_at = NOW() WHERE id = ?";
-            return $this->execute($sql, [$id]);
+            $params = [$id];
+        } else {
+            $sql = "UPDATE {$this->tabla} SET estado = 'cancelada', updated_at = NOW()
+                    WHERE id = ? AND usuario_id = ? AND estado IN ('pendiente', 'confirmada')";
+            $params = [$id, $usuarioId];
         }
 
-        $sql = "UPDATE {$this->tabla} SET estado = 'cancelada', updated_at = NOW()
-                WHERE id = ? AND usuario_id = ? AND estado IN ('pendiente', 'confirmada')";
-        return $this->execute($sql, [$id, $usuarioId]);
+        // Cancelar libera la cancha y NO toca los pagos. Se hace con la cancha bloqueada (misma
+        // lógica de la reserva atómica) para que no se cruce con una reserva nueva que se esté guardando.
+        $fila = $this->selectOne("SELECT cancha_id FROM {$this->tabla} WHERE id = ?", [$id]);
+        if (!$fila || $this->inTransaction()) {
+            return $this->execute($sql, $params);
+        }
+        $this->beginTransaction();
+        try {
+            $this->bloquearCanchas([(int)$fila['cancha_id']]);
+            $ok = $this->execute($sql, $params);
+            $this->commit();
+            return $ok;
+        } catch (\Throwable $e) {
+            $this->rollBack();
+            return false;
+        }
     }
 
     /**
@@ -453,6 +744,132 @@ class Reserva extends Model {
     }
 
     /**
+     * Cantidad de reservas/eventos (un evento cuenta una vez) con pago por verificar. Mismo criterio que pagoEsPorVerificar().
+     */
+    public function contarPagosPorVerificar(): int {
+        $res = $this->selectOne("SELECT COUNT(DISTINCT IF(evento_grupo IS NULL OR evento_grupo = '', CONCAT('r', id), CONCAT('e', evento_grupo))) AS total
+                                 FROM {$this->tabla}
+                                 WHERE pago_estado = 'en_revision' AND estado <> 'cancelada' AND es_demo = 0");
+        return (int)($res['total'] ?? 0);
+    }
+
+    /**
+     * Agrega una nota al final de las observaciones de una reserva o de todo un evento (por ejemplo, el motivo de un rechazo).
+     */
+    public function agregarObservacion(int $id, string $grupo, string $texto): void {
+        $texto = mb_substr(trim($texto), 0, 300);
+        if ($texto === '') {
+            return;
+        }
+        $set = "observaciones = CONCAT(IFNULL(observaciones, ''), IF(observaciones IS NULL OR observaciones = '', '', ' | '), ?), updated_at = NOW()";
+        if ($grupo !== '') {
+            $this->execute("UPDATE {$this->tabla} SET {$set} WHERE evento_grupo = ?", [$texto, $grupo]);
+        } else {
+            $this->execute("UPDATE {$this->tabla} SET {$set} WHERE id = ?", [$texto, $id]);
+        }
+    }
+
+    /**
+     * Intervalos ocupados (en minutos desde 00:00) de una cancha entre dos fechas. Solo lectura, una consulta.
+     * Mismo criterio que hayChoque: es_demo=0, 00:00 = 24:00 y espacios confirmados con sus canchas.
+     * Es solo ayuda visual para el formulario: el servidor vuelve a validar al reservar.
+     *
+     * @return array<string, array<int, array{0: int, 1: int}>> fecha => [[inicio, fin], ...]
+     */
+    public function ocupacionCancha(int $canchaId, string $desde, string $hasta): array {
+        $sqlRes = "SELECT fecha, hora_inicio, hora_fin FROM {$this->tabla}
+                   WHERE cancha_id = ? AND fecha BETWEEN ? AND ?
+                     AND estado IN ('pendiente', 'confirmada') AND es_demo = 0";
+        $sqlEsp = "SELECT s.fecha, s.hora_inicio, s.hora_fin FROM solicitudes_espacios_canchas sc
+                   JOIN solicitudes_espacios s ON s.id = sc.solicitud_id
+                   WHERE sc.cancha_id = ? AND s.fecha BETWEEN ? AND ? AND s.estado = 'confirmado'";
+        $params = [$canchaId, $desde, $hasta];
+        try {
+            $filas = $this->select($sqlRes . ' UNION ALL ' . $sqlEsp, array_merge($params, $params));
+        } catch (\PDOException $e) {
+            $filas = $this->select($sqlRes, $params); // migración 016 aún no aplicada
+        }
+        $aMin = static fn(string $h): int => ((int)substr($h, 0, 2)) * 60 + (int)substr($h, 3, 2);
+        $ocupado = [];
+        foreach ($filas as $f) {
+            $fin = $aMin((string)$f['hora_fin']);
+            $ocupado[(string)$f['fecha']][] = [$aMin((string)$f['hora_inicio']), $fin === 0 ? 1440 : $fin];
+        }
+        return $ocupado;
+    }
+
+    /**
+     * Próximos horarios libres (bloques de 30 min) de varias canchas para HOY y MAÑANA. Solo lectura.
+     * Hace UNA sola consulta para todas las canchas y fechas; el cálculo de "libre" usa las mismas reglas
+     * del formulario (validarHorarioReserva: horario del negocio, paso de 30 min, no pasado) y el mismo
+     * criterio de choque que hayChoque (es_demo=0, 00:00 = 24:00, espacios confirmados con sus canchas).
+     *
+     * @param array<int, int> $canchaIds
+     * @return array<int, array{hoy: array<int, string>, manana: array<int, string>, fecha_hoy: string, fecha_manana: string}>
+     */
+    public function proximosHorariosLibres(array $canchaIds, int $max = 6): array {
+        $canchaIds = array_values(array_unique(array_map('intval', $canchaIds)));
+        $tz = new \DateTimeZone('America/Lima');
+        $ahora = new \DateTimeImmutable('now', $tz);
+        $fechas = ['hoy' => $ahora->format('Y-m-d'), 'manana' => $ahora->modify('+1 day')->format('Y-m-d')];
+
+        $resultado = [];
+        foreach ($canchaIds as $id) {
+            $resultado[$id] = ['hoy' => [], 'manana' => [], 'fecha_hoy' => $fechas['hoy'], 'fecha_manana' => $fechas['manana']];
+        }
+        if (!$canchaIds) {
+            return $resultado;
+        }
+
+        $inC = implode(',', array_fill(0, count($canchaIds), '?'));
+        $sqlRes = "SELECT cancha_id, fecha, hora_inicio, hora_fin FROM {$this->tabla}
+                   WHERE cancha_id IN ({$inC}) AND fecha IN (?, ?)
+                     AND estado IN ('pendiente', 'confirmada') AND es_demo = 0";
+        $sqlEsp = "SELECT sc.cancha_id, s.fecha, s.hora_inicio, s.hora_fin FROM solicitudes_espacios_canchas sc
+                   JOIN solicitudes_espacios s ON s.id = sc.solicitud_id
+                   WHERE sc.cancha_id IN ({$inC}) AND s.fecha IN (?, ?) AND s.estado = 'confirmado'";
+        $params = array_merge($canchaIds, array_values($fechas));
+        try {
+            $filas = $this->select($sqlRes . ' UNION ALL ' . $sqlEsp, array_merge($params, $params));
+        } catch (\PDOException $e) {
+            $filas = $this->select($sqlRes, $params); // migración 016 aún no aplicada
+        }
+
+        $aMin = static function (string $h): int {
+            return ((int)substr($h, 0, 2)) * 60 + (int)substr($h, 3, 2);
+        };
+        $ocupado = [];
+        foreach ($filas as $f) {
+            $fin = $aMin((string)$f['hora_fin']);
+            $ocupado[(int)$f['cancha_id']][(string)$f['fecha']][] = [$aMin((string)$f['hora_inicio']), $fin === 0 ? 1440 : $fin];
+        }
+
+        foreach ($canchaIds as $id) {
+            foreach ($fechas as $clave => $fecha) {
+                $primera = horaMinimaReserva($fecha, false);
+                if ($primera === '24:00') {
+                    continue;
+                }
+                $bloques = $ocupado[$id][$fecha] ?? [];
+                for ($m = $aMin($primera); $m < 1440 && count($resultado[$id][$clave]) < $max; $m += 30) {
+                    $hhmm = sprintf('%02d:%02d', intdiv($m, 60), $m % 60);
+                    if (!validarHorarioReserva($fecha, $hhmm, 0.5)['ok']) {
+                        continue;
+                    }
+                    $libre = true;
+                    foreach ($bloques as [$ini, $fin]) {
+                        if ($ini < $m + 30 && $fin > $m) { $libre = false; break; }
+                    }
+                    if ($libre) {
+                        $resultado[$id][$clave][] = $hhmm;
+                    }
+                }
+            }
+        }
+        return $resultado;
+    }
+
+    /**
      * Retorna los slots horarios ocupados (formato 'HH:00') para una cancha
      * en una fecha, expandiendo las reservas en bloques de 1 hora (07:00-23:00).
      *
@@ -510,11 +927,11 @@ class Reserva extends Model {
             $hora = date('H:i:s');
         }
 
-        // Si llega y se marca presente pero su llegada supera los 10 minutos de tolerancia, registrar como tardanza
+        // Si llega y se marca presente pero su llegada supera la tolerancia (TOLERANCIA_MINUTOS en config), registrar como tardanza
         if ($asistenciaEstado === 'presente' && $hora !== null) {
             $hIniTs = strtotime("{$reserva['fecha']} {$reserva['hora_inicio']}");
             $hLlegadaTs = strtotime("{$reserva['fecha']} {$hora}");
-            if ($hLlegadaTs > $hIniTs + 600) { // más de 10 min
+            if ($hLlegadaTs > $hIniTs + toleranciaMinutos() * 60) { // más de la tolerancia (config)
                 $asistenciaEstado = 'tardanza';
                 if ($notas === null || $notas === '') {
                     $minTardanza = (int)floor(($hLlegadaTs - $hIniTs) / 60);
@@ -627,17 +1044,19 @@ class Reserva extends Model {
         $nuevaFinDt->modify("+{$minutosDuracion} minutes");
         $nuevaHoraFin = $nuevaFinDt->format('H:i:s');
 
-        // 3. Validar disponibilidad de la cancha de destino (excluyendo la reserva actual)
-        $canchaModel = new Cancha();
-        $disponible = $canchaModel->estaDisponible($nuevaCanchaId, $nuevaFecha, $nuevaHoraInicio, $nuevaHoraFin, $id);
-        if (!$disponible) {
-            return [
-                'ok' => false,
-                'error' => 'La cancha y horario seleccionados no están disponibles o colisionan con otra reserva confirmada.'
-            ];
+        // El NUEVO horario no puede estar en el pasado y debe respetar el paso (:00/:30).
+        // Si no cambian fecha ni hora (solo cancha o duración), un horario antiguo con minutos raros se conserva.
+        $mismoInicio = ($nuevaFecha === (string)$reserva['fecha'] && substr($nuevaHoraInicio, 0, 5) === substr((string)$reserva['hora_inicio'], 0, 5));
+        if (!$mismoInicio) {
+            $v = validarHorarioReserva($nuevaFecha, $nuevaHoraInicio, $duracionHoras);
+            if (!$v['ok']) {
+                return ['ok' => false, 'error' => (string)$v['error']];
+            }
         }
 
-        // 4. Recalcular precio según la nueva cancha y duración
+        // 3-5. Comprobar disponibilidad (excluyendo la propia reserva), recalcular precio y guardar:
+        //      todo dentro de una transacción con la cancha de destino bloqueada (evita doble reserva)
+        $canchaModel = new Cancha();
         $canchaDestino = $canchaModel->obtenerPorId($nuevaCanchaId);
         if (!$canchaDestino) {
             return ['ok' => false, 'error' => 'La cancha seleccionada no existe.'];
@@ -645,7 +1064,6 @@ class Reserva extends Model {
         $precioHora = (float)$canchaDestino['precio_hora'];
         $nuevoTotal = round($duracionHoras * $precioHora, 2);
 
-        // 5. Auditar cambio y actualizar registro conservando pagos verificados existentes
         $sql = "UPDATE {$this->tabla} SET
                     reprogramado_de_cancha_id = ?,
                     reprogramado_de_fecha = ?,
@@ -665,8 +1083,21 @@ class Reserva extends Model {
                     updated_at = NOW()
                 WHERE id = ?";
 
+        if ($this->inTransaction()) {
+            return ['ok' => false, 'error' => 'Ya hay una operación en curso. Intenta de nuevo.'];
+        }
+        $this->beginTransaction();
         try {
-            $stmt = $this->query($sql, [
+            $bloq = $this->bloquearCanchas([$nuevaCanchaId]);
+            $this->select("SELECT id FROM {$this->tabla} WHERE id = ? FOR UPDATE", [$id]);
+            if (empty($bloq) || $bloq[0]['estado'] !== 'disponible' || $this->hayChoque($nuevaCanchaId, $nuevaFecha, $nuevaHoraInicio, $nuevaHoraFin, $id)) {
+                $this->rollBack();
+                return [
+                    'ok' => false,
+                    'error' => 'La cancha y horario seleccionados no están disponibles o colisionan con otra reserva confirmada.'
+                ];
+            }
+            $this->query($sql, [
                 (int)$reserva['cancha_id'],
                 (string)$reserva['fecha'],
                 (string)$reserva['hora_inicio'],
@@ -680,7 +1111,9 @@ class Reserva extends Model {
                 $nuevoTotal,
                 $id
             ]);
+            $this->commit();
         } catch (\PDOException $e) {
+            $this->rollBack();
             return ['ok' => false, 'error' => 'Error de base de datos al reprogramar: ' . $e->getMessage()];
         }
 

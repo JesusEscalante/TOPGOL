@@ -3,8 +3,17 @@ declare(strict_types=1);
 
 $esAdminView = function_exists('isAdmin') && isAdmin();
 $hoyStr = date('Y-m-d');
-$horaMinHoy = max(7, (int)date('H') + 1);
+// Hora mínima de inicio hoy (Lima): cliente = posterior a ahora; administrador = bloque de media hora en curso
+$minHoyEvt = horaMinimaReserva($hoyStr, $esAdminView);
 $tipoLabels = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11' => 'Fútbol 11'];
+$tg = eventosTextos()['futbol_grupos'] ?? [];
+// Si el guardado falló (horario tomado, etc.) se vuelve con lo que el usuario ya había escrito
+$old = $_SESSION['old_evento'] ?? [];
+unset($_SESSION['old_evento']);
+$oldHora = (string)($old['hora'] ?? '');
+$oldH = $oldHora !== '' ? substr($oldHora, 0, 2) : '';
+$oldM = $oldHora !== '' ? substr($oldHora, 3, 2) : '';
+$oldCanchas = array_map('intval', (array)($old['canchas_ids'] ?? []));
 ?>
 
 <div class="container py-3 pago-page">
@@ -19,7 +28,7 @@ $tipoLabels = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11'
     <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
         <div>
             <h1 class="pago-h1">Reserva tu evento</h1>
-            <p class="pago-sub">Elige un mismo día y reserva varias canchas. El <strong>adelanto es S/ 20 por cancha</strong>.</p>
+            <p class="pago-sub"><?= htmlspecialchars((string)($tg['descripcion'] ?? '')) ?> El <strong>adelanto es S/ 20 por cancha</strong>.</p>
         </div>
     </div>
 
@@ -37,7 +46,7 @@ $tipoLabels = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11'
             <div class="row g-3">
                 <div class="col-md-4">
                     <label for="fecha" class="form-label fw-semibold small">Fecha <span class="text-danger">*</span></label>
-                    <input type="date" class="form-control" id="fecha" name="fecha" min="<?= $hoyStr ?>" value="<?= $hoyStr ?>" required>
+                    <input type="date" class="form-control" id="fecha" name="fecha" min="<?= $hoyStr ?>" value="<?= htmlspecialchars((string)($old['fecha'] ?? $hoyStr)) ?>" required>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fw-semibold small">Hora <span class="text-danger">*</span></label>
@@ -45,17 +54,14 @@ $tipoLabels = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11'
                         <select class="form-select" id="horaVal" style="border-right:none;" required>
                             <option value="">HH</option>
                             <?php for($h=7;$h<=23;$h++): $hs=sprintf('%02d',$h); ?>
-                                <option value="<?= $hs ?>"><?= $hs ?></option>
+                                <option value="<?= $hs ?>" <?= $oldH === $hs ? 'selected' : '' ?>><?= $hs ?></option>
                             <?php endfor; ?>
                         </select>
                         <span class="input-group-text bg-white border-start-0 border-end-0 px-1">:</span>
                         <select class="form-select" id="minVal" style="border-left:none;" required>
-                            <option value="00">00</option>
-                            <option value="10">10</option>
-                            <option value="20">20</option>
-                            <option value="30">30</option>
-                            <option value="40">40</option>
-                            <option value="50">50</option>
+                            <?php foreach (reservaMinutosInicio() as $mm): ?>
+                                <option value="<?= $mm ?>" <?= $oldM === $mm ? 'selected' : '' ?>><?= $mm ?></option>
+                            <?php endforeach; ?>
                         </select>
                         <input type="hidden" name="hora" id="hora" value="">
                     </div>
@@ -67,35 +73,30 @@ $tipoLabels = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11'
                         <?php
                         $durOpcionesEvt = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6];
                         foreach ($durOpcionesEvt as $d):
-                            $lbl = $d == 0.5 ? '30 minutos' : ($d == 1 ? '1 hora' : $d . ' horas');
-                            if (fmod($d, 1) == 0.5) {
-                                $h = (int)floor($d);
-                                $lbl = $h . 'h 30m';
-                                if ($d == 0.5) $lbl = '30 minutos';
-                            }
+                            $lbl = formatoDuracionHoras((float)$d);
                         ?>
-                            <option value="<?= $d ?>" <?= $d==1?'selected':'' ?>><?= $lbl ?></option>
+                            <option value="<?= $d ?>" <?= (isset($old['duracion']) ? (float)$old['duracion'] === (float)$d : $d == 1) ? 'selected' : '' ?>><?= $lbl ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
                 <?php if ($esAdminView): ?>
                 <div class="col-md-6">
                     <label for="cliente_nombre" class="form-label fw-semibold small">Nombre del cliente <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="cliente_nombre" name="cliente_nombre" placeholder="Ej: Juan Pérez" required>
+                    <input type="text" class="form-control" id="cliente_nombre" name="cliente_nombre" placeholder="Ej: Juan Pérez" value="<?= htmlspecialchars((string)($old['cliente_nombre'] ?? '')) ?>" required>
                     <input type="hidden" id="cliente_id" name="cliente_id" value="0">
                 </div>
                                 <div class="col-md-6">
                     <label for="contacto_telefono" class="form-label fw-semibold small">Número de contacto (celular / WhatsApp) <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <span class="input-group-text" style="background:#f8fafc; font-weight:700; color:#334155; border-color:#e2e8f0;">+51</span>
-                        <input type="tel" class="form-control" id="contacto_telefono" name="contacto_telefono" placeholder="987 654 321" required>
+                        <input type="tel" class="form-control" id="contacto_telefono" name="contacto_telefono" placeholder="9XX XXX XXX" value="<?= htmlspecialchars((string)preg_replace('/^\+51\s*/', '', (string)($old['contacto_telefono'] ?? ''))) ?>" required>
                     </div>
                     <div class="invalid-feedback">Ingresa tu celular / WhatsApp.</div>
                 </div>
                 <?php endif; ?>
                 <div class="col-12">
                     <label for="observaciones" class="form-label fw-semibold small">Observaciones (opcional)</label>
-                    <input type="text" class="form-control" id="observaciones" name="observaciones" placeholder="Ej: Campeonato inter-áreas, traer árbitro...">
+                    <input type="text" class="form-control" id="observaciones" name="observaciones" placeholder="Ej: Campeonato inter-áreas, traer árbitro..." value="<?= htmlspecialchars((string)($old['observaciones'] ?? '')) ?>">
                 </div>
             </div>
             <small class="text-muted d-block mt-2"><i class="bi bi-info-circle me-1"></i> Mismo horario para todas las canchas seleccionadas.</small>
@@ -115,7 +116,7 @@ $tipoLabels = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11'
                     <div class="col-md-6">
                         <label class="cancha-evt" style="display:block; border:1.5px solid #e2e8f0; border-radius:12px; padding:12px; cursor:pointer; transition:all .15s;">
                             <span style="display:flex; align-items:center; gap:10px;">
-                                <input type="checkbox" name="canchas_ids[]" value="<?= $tid ?>" class="chk-cancha" data-precio="<?= $c['precio_hora'] ?>" data-nombre="<?= htmlspecialchars($c['nombre']) ?>" style="width:18px;height:18px;">
+                                <input type="checkbox" name="canchas_ids[]" value="<?= $tid ?>" class="chk-cancha" data-precio="<?= $c['precio_hora'] ?>" data-nombre="<?= htmlspecialchars($c['nombre']) ?>" <?= in_array($tid, $oldCanchas, true) ? 'checked' : '' ?> style="width:18px;height:18px;">
                                 <strong style="font-size:.9rem;"><?= htmlspecialchars($c['nombre']) ?></strong>
                                 <span class="ms-auto fw-bold" style="color:#1a7a3a; font-size:.85rem;">S/ <?= number_format((float)$c['precio_hora'], 0) ?>/h</span>
                             </span>
@@ -157,8 +158,8 @@ $tipoLabels = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11'
             <input type="hidden" name="metodo_pago" id="metodo_pago" value="<?= $esAdminView ? 'efectivo' : 'yape' ?>">
             <div class="row g-2 mb-3">
                 <?php if ($esAdminView): ?>
-                    <div class="col-4"><button type="button" class="metodo-btn active" id="btnEfectivo" onclick="elegirMetodoEvt('efectivo')"><span class="bcp-logo" style="background:#1a7a3a;">S/</span> Efectivo</button></div>
-                    <div class="col-4"><button type="button" class="metodo-btn" id="btnNiubiz" onclick="elegirMetodoEvt('niubiz')"><span class="bcp-logo" style="background:#005bb5;">POS</span> Niubiz (POS)</button></div>
+                    <div class="col-4"><button type="button" class="metodo-btn active" id="btnEfectivo" onclick="elegirMetodoEvt('efectivo')"><span class="logo-metodo" style="background:#1a7a3a;">S/</span> Efectivo</button></div>
+                    <div class="col-4"><button type="button" class="metodo-btn" id="btnNiubiz" onclick="elegirMetodoEvt('niubiz')"><span class="logo-metodo" style="background:#005bb5;">POS</span> Niubiz (POS)</button></div>
                     <div class="col-4"><button type="button" class="metodo-btn" id="btnYape" onclick="elegirMetodoEvt('yape')"><span class="yape-logo">yape</span> Yape</button></div>
                 <?php else: ?>
                     <div class="col-12"><button type="button" class="metodo-btn active" id="btnYape" onclick="elegirMetodoEvt('yape')" style="cursor:default;"><span class="yape-logo">yape</span> Yape — Adelanto S/ 20 por cancha</button></div>
@@ -189,25 +190,7 @@ $tipoLabels = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11'
 
             <div class="pago-panel <?= $esAdminView ? 'd-none' : '' ?>" id="panelYape">
                 <div class="row g-3">
-                    <div class="col-md-5 text-center">
-                        <div class="qr-title">Escanea el código QR con Yape</div>
-                        <div class="qr-wrap">
-                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=YAPE-TOPGOL-TACNA-987654321-EVENTO" alt="QR Yape Top Gol" width="180" height="180">
-                            <span class="qr-logo">yape</span>
-                        </div>
-                    </div>
-                    <div class="col-md-7">
-                        <div class="pago-numero-box">
-                            <div class="fw-semibold small mb-2">También puedes yapear al número:</div>
-                            <div class="d-flex align-items-center gap-2 flex-wrap">
-                                <span class="tel-ico"><i class="bi bi-telephone-fill"></i></span>
-                                <strong class="tel-num">987 654 321</strong>
-                                <button type="button" class="btn-copiar" onclick="copiarNumero('987654321', this)">
-                                    <i class="bi bi-copy"></i> Copiar
-                                </button>
-                            </div>
-                            <div class="small mt-2">Titular: <strong>Top Gol Tacna S.A.C.</strong></div>
-                        </div>
+                    <?php ob_start(); ?>
                         <div class="pago-importante">
                             <div class="fw-bold mb-1"><span class="info-ico"><i class="bi bi-info-lg"></i></span> Importante</div>
                             <ul class="mb-0">
@@ -216,10 +199,15 @@ $tipoLabels = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11'
                                 <li>El encargado verificará el pago para confirmar tu evento.</li>
                             </ul>
                         </div>
-                    </div>
+                    <?php $yapeImportanteHtml = ob_get_clean(); ?>
+                    <?php include __DIR__ . DIRECTORY_SEPARATOR . '_yape_datos.php'; ?>
                 </div>
             </div>
         </div>
+
+        <?php if (!$esAdminView): ?>
+        <?php require __DIR__ . '/_tolerancia.php'; ?>
+        <?php endif; ?>
 
         <!-- Comprobante -->
         <div class="pago-card mb-3 <?= $esAdminView ? 'd-none' : '' ?>" id="seccionComprobante" style="<?= $esAdminView ? 'display:none;' : '' ?>">
@@ -247,11 +235,29 @@ $tipoLabels = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11'
                 <div class="rp-row saldo"><span>Saldo pendiente</span><strong id="resSaldo">S/ 0</strong></div>
                 <div class="rp-row" style="font-size:.7rem; color:#7c8aa0;"><span>Canchas</span><strong id="resCanchas">0</strong></div>
             </div>
+            <?php if (!$esAdminView): ?><?php require __DIR__ . '/_tolerancia.php'; ?><?php endif; ?>
             <div class="resumen-alerta mt-3">
                 <span class="ra-ico"><i class="bi bi-clock-history"></i></span>
-                <span><strong id="resAlertaTitle">Revisión de Pago</strong><small id="resAlertaText">Una vez verificado tu comprobante. Te notificaremos para completar la reserva.</small></span>
+                <span><strong id="resAlertaTitle">Revisión de Pago</strong><small id="resAlertaText">Tu reserva se confirma cuando se verifique tu comprobante.</small></span>
+            </div>
+            <?php if (!$esAdminView): ?><?php require __DIR__ . '/_verificacion.php'; ?><?php endif; ?>
+        </div>
+
+        <?php if (!$esAdminView): ?>
+        <div class="pago-card mb-3">
+            <h2 class="pago-h2"><?= htmlspecialchars((string)($tg['reglas_titulo'] ?? 'Reglas')) ?></h2>
+            <ul class="mb-3" style="font-size:.9rem;">
+                <?php foreach (($tg['reglas'] ?? []) as $regla): ?>
+                    <li><?= htmlspecialchars((string)$regla) ?></li>
+                <?php endforeach; ?>
+            </ul>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="1" id="acepta_reglas" name="acepta_reglas" required>
+                <label class="form-check-label fw-semibold" for="acepta_reglas"><?= htmlspecialchars((string)($tg['acepto'] ?? 'Acepto las reglas')) ?> <span class="text-danger">*</span></label>
+                <div class="invalid-feedback">Debes aceptar las reglas para reservar.</div>
             </div>
         </div>
+        <?php endif; ?>
 
         <button type="submit" class="btn-enviar"> <i class="bi bi-send me-2"></i> Reservar evento</button>
     </form>
@@ -277,7 +283,7 @@ $tipoLabels = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11'
 .metodo-btn { width:100%; display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; border:1.5px solid #e2e8f0; background:#fff; font-weight:700; color:#101c33; transition:all .15s; }
 .metodo-btn.active { background:#effaf1; border-color:#22c55e; }
 .yape-logo { background:#742284; color:#fff; font-style:italic; font-weight:800; border-radius:8px; padding:6px 10px; font-size:.85rem; }
-.bcp-logo { background:#002a8d; color:#fff; font-weight:800; border-radius:8px; padding:6px 10px; font-size:.8rem; }
+.logo-metodo { background:#002a8d; color:#fff; font-weight:800; border-radius:8px; padding:6px 10px; font-size:.8rem; }
 .cancha-evt:has(.chk-cancha:checked) { border-color:#22c55e !important; background:#effaf1; }
 .pago-panel { border:1px solid #e8eef4; border-radius:10px; padding:14px; }
 .qr-title { font-size:.8rem; font-weight:600; margin-bottom:8px; }
@@ -309,6 +315,7 @@ $tipoLabels = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11'
 .resumen-alerta small { color:#7c6a3a; font-size:.78rem; }
 </style>
 
+<script>
 var ES_ADMIN_EVT = <?= $esAdminView ? 'true' : 'false' ?>;
 var tipoCobroEvtActual = 'completo';
 
@@ -348,7 +355,7 @@ function copiarNumero(num, btn){
 (function(){
     var fecha=document.getElementById('fecha');
     var hoyStr=<?= json_encode($hoyStr) ?>;
-    var horaMinHoy=<?= (int)$horaMinHoy ?>;
+    var minHoy=<?= json_encode($minHoyEvt) ?>; // 'HH:MM' calculado en el servidor (hora de Lima)
     var form=document.getElementById('formEvento');
     var alertBox=document.getElementById('formAlert'), alertList=document.getElementById('formAlertList');
     var dz=document.getElementById('dropzone'), input=document.getElementById('comprobante'), info=document.getElementById('fileInfo'), err=document.getElementById('fileError');
@@ -395,21 +402,33 @@ function copiarNumero(num, btn){
         if(!selHoraValEvt) return;
         var esHoy = fecha.value === hoyStr;
         var visibles=0;
+        var minH=parseInt(minHoy.slice(0,2),10), minM=parseInt(minHoy.slice(3,5),10);
         Array.from(selHoraValEvt.options).forEach(function(o){
             if(!o.value) return;
             var h=parseInt(o.value,10);
-            var oculta = esHoy && h < horaMinHoy;
+            var oculta = esHoy && (minHoy==='24:00' || h < minH);
             o.hidden=oculta; o.disabled=oculta;
             if(!oculta) visibles++;
             if(oculta && o.selected) selHoraValEvt.value='';
         });
+        if(selMinValEvt){
+            Array.from(selMinValEvt.options).forEach(function(o){
+                var pasada = esHoy && selHoraValEvt.value!=='' && parseInt(selHoraValEvt.value,10)===minH && parseInt(o.value,10) < minM;
+                o.disabled=pasada; o.hidden=pasada;
+            });
+            var cur = selMinValEvt.options[selMinValEvt.selectedIndex];
+            if(cur && cur.disabled){
+                var libre = Array.from(selMinValEvt.options).find(function(o){ return !o.disabled; });
+                if(libre) selMinValEvt.value = libre.value;
+            }
+        }
         var aviso=document.getElementById('sinHorariosHoy');
         if(aviso) aviso.classList.toggle('d-none', !(esHoy && visibles===0));
         actualizarInputHora();
     }
 
     fecha.addEventListener('change', function(){ filtrarHorasEvt(); window.actualizarEvtResumen(); });
-    if(selHoraValEvt) selHoraValEvt.addEventListener('change', function(){ actualizarInputHora(); window.actualizarEvtResumen(); });
+    if(selHoraValEvt) selHoraValEvt.addEventListener('change', function(){ filtrarHorasEvt(); window.actualizarEvtResumen(); });
     if(selMinValEvt) selMinValEvt.addEventListener('change', function(){ actualizarInputHora(); window.actualizarEvtResumen(); });
     if(selDurEvt) selDurEvt.addEventListener('change', window.actualizarEvtResumen);
     filtrarHorasEvt();
@@ -462,6 +481,8 @@ function copiarNumero(num, btn){
         if(!contactoEvt || !contactoEvt.value.trim()) falt.push('Ingresa un número de contacto (celular / WhatsApp).');
         <?php if ($esAdminView): ?>if(!document.getElementById('cliente_nombre').value.trim()) falt.push('Ingresa el nombre del cliente.');<?php endif; ?>
         var metodo=document.getElementById('metodo_pago').value;
+        var chkReglas=document.getElementById('acepta_reglas');
+        if(chkReglas && !chkReglas.checked) falt.push('Debes aceptar las reglas para reservar.');
         var requiereComp = !ES_ADMIN_EVT;
         var f=input ? input.files[0] : null;
         if(requiereComp && !f){ falt.push('Sube tu comprobante de pago (JPG, PNG o PDF, máx. 5MB).'); if(err){ err.textContent='Falta tu comprobante.'; err.classList.remove('d-none'); } }

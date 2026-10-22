@@ -69,7 +69,8 @@ $router->get('/reserva/formulario/{id_cancha}', 'ReservaController@formulario', 
 $router->get('/reserva/crear', 'ReservaController@create', ['auth']);
 $router->get('/reserva/crear/{id_cancha}', 'ReservaController@create', ['auth']);
 $router->post('/reserva/guardar', 'ReservaController@store', ['auth']);
-$router->get('/reserva/cancelar/{id}', 'ReservaController@cancel', ['auth']);
+$router->get('/reserva/cancelar/{id}', 'ReservaController@cancel', ['auth']);  // por GET ya no cancela: avisa y redirige
+$router->post('/reserva/cancelar/{id}', 'ReservaController@cancel', ['auth']);
 $router->post('/reserva/estado/{id}', 'ReservaController@updateStatus', ['admin']);
 $router->get('/mis-reservas', 'ReservaController@misReservas', ['auth']);
 $router->get('/mis-reservas/{id}', 'ReservaController@detalle', ['auth']);

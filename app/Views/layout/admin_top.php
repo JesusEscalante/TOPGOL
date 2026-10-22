@@ -18,21 +18,84 @@ $inicial = mb_strtoupper(mb_substr($nombreAdmin, 0, 1));
 
 $adminMenuActivo = $adminMenu ?? 'dashboard';
 
+// Contador de la pestaña "Por verificar" (mismo criterio que la lista de Caja)
+$conteoVerifAdm = 0;
+try {
+    $conteoVerifAdm = (new \App\Models\Reserva())->contarPagosPorVerificar();
+} catch (\Throwable $e) {
+    $conteoVerifAdm = 0;
+}
+
+// Ruta actual normalizada (sin query ni subcarpeta): el grupo y la pestaña activos se deciden por la URL,
+// así cada pantalla resalta SU grupo y SU pestaña (por ejemplo, Venta rápida ya no marca Historial de ventas).
+$reqPathAdm = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
+$basePathAdm = parse_url(URL_BASE, PHP_URL_PATH) ?? '';
+if ($basePathAdm !== '' && $basePathAdm !== '/' && str_starts_with($reqPathAdm, $basePathAdm)) {
+    $reqPathAdm = substr($reqPathAdm, strlen($basePathAdm));
+}
+$rutaAdm = '/' . trim($reqPathAdm, '/');
+
+// Menú corto: las pantallas hermanas pasan a pestañas dentro de su grupo (las rutas son las mismas de siempre).
 $nav = [
-    ['key' => 'dashboard',  'label' => 'Dashboard',            'ico' => 'bi-house',               'href' => url('/admin/dashboard')],
-    ['key' => 'reservas',   'label' => 'Reservas',             'ico' => 'bi-calendar',            'href' => url('/admin/reservas')],
-    ['key' => 'calendario', 'label' => 'Calendario',           'ico' => 'bi-calendar3',           'href' => url('/admin/calendario')],
-    ['key' => 'espacios',   'label' => 'Espacios y cumpleaños', 'ico' => 'bi-balloon',            'href' => url('/admin/espacios')],
-    ['key' => 'pagos',      'label' => 'Pagos y Saldos',       'ico' => 'bi-credit-card-2-front', 'href' => url('/admin/pagos')],
-    ['key' => 'caja',       'label' => 'Caja del día',         'ico' => 'bi-cash-coin',           'href' => url('/admin/caja')],
-    ['key' => 'reportes',   'label' => 'Reportes y Datos',     'ico' => 'bi-bar-chart-line',      'href' => url('/admin/reportes')],
-    ['key' => 'canchas',    'label' => 'Canchas',              'ico' => 'bi-grid',                'href' => url('/canchas')],
-    ['key' => 'pos',        'label' => 'Venta Rápida (POS)',   'ico' => 'bi-cart-check',          'href' => url('/admin/ventas/pos')],
-    ['key' => 'ventas',     'label' => 'Historial Ventas',     'ico' => 'bi-receipt',             'href' => url('/admin/ventas')],
-    ['key' => 'productos',  'label' => 'Productos',            'ico' => 'bi-box',                 'href' => url('/admin/productos')],
-    ['key' => 'categorias', 'label' => 'Categorías',           'ico' => 'bi-tags',                'href' => url('/admin/categorias')],
-    ['key' => 'inventario', 'label' => 'Kardex / Stock',       'ico' => 'bi-boxes',               'href' => url('/admin/inventario')],
+    ['key' => 'dashboard',  'label' => 'Inicio',     'ico' => 'bi-house',          'href' => url('/admin/dashboard'), 'tabs' => []],
+    ['key' => 'calendario', 'label' => 'Calendario', 'ico' => 'bi-calendar3',      'href' => url('/admin/calendario'), 'tabs' => []],
+    ['key' => 'reservas',   'label' => 'Reservas',   'ico' => 'bi-calendar-check', 'href' => url('/admin/reservas'), 'tabs' => [
+        ['key' => 'reservas', 'label' => 'Reservas',               'href' => url('/admin/reservas')],
+        ['key' => 'espacios', 'label' => 'Cumpleaños y reuniones', 'href' => url('/admin/espacios')],
+    ]],
+    ['key' => 'caja',       'label' => 'Caja',       'ico' => 'bi-cash-coin',      'href' => url('/admin/pagos?tab=revision'), 'tabs' => [
+        ['key' => 'porverificar', 'label' => 'Por verificar',      'href' => url('/admin/pagos?tab=revision'), 'badge' => $conteoVerifAdm],
+        ['key' => 'cobrar',       'label' => 'Cobrar saldos',      'href' => url('/admin/pagos?tab=pendientes')],
+        ['key' => 'caja',         'label' => 'Caja del día',       'href' => url('/admin/caja')],
+        ['key' => 'historial',    'label' => 'Historial de cobros', 'href' => url('/admin/pagos?tab=historial')],
+    ]],
+    ['key' => 'ventas',     'label' => 'Ventas',     'ico' => 'bi-cart-check',     'href' => url('/admin/ventas/pos'), 'tabs' => [
+        ['key' => 'pos',    'label' => 'Venta rápida',        'href' => url('/admin/ventas/pos')],
+        ['key' => 'ventas', 'label' => 'Historial de ventas', 'href' => url('/admin/ventas')],
+    ]],
+    ['key' => 'productos',  'label' => 'Productos',  'ico' => 'bi-box',            'href' => url('/admin/productos'), 'tabs' => [
+        ['key' => 'productos',  'label' => 'Productos',          'href' => url('/admin/productos')],
+        ['key' => 'categorias', 'label' => 'Categorías',         'href' => url('/admin/categorias')],
+        ['key' => 'inventario', 'label' => 'Inventario y stock', 'href' => url('/admin/inventario')],
+    ]],
+    ['key' => 'reportes',   'label' => 'Reportes',   'ico' => 'bi-bar-chart-line', 'href' => url('/admin/reportes'), 'tabs' => []],
+    ['key' => 'canchas',    'label' => 'Canchas',    'ico' => 'bi-grid',           'href' => url('/canchas'), 'tabs' => []],
 ];
+
+// Pantalla (pestaña) activa según la ruta; el valor que manda la vista ($adminMenu) es el respaldo.
+$tabPorRutaAdm = [
+    '/admin/dashboard' => 'dashboard', '/admin/calendario' => 'calendario',
+    '/admin/espacios' => 'espacios', '/admin/reservas' => 'reservas', '/admin/reserva' => 'reservas', '/reservas' => 'reservas',
+    '/admin/caja' => 'caja', '/admin/pagos' => 'porverificar', '/admin/pago' => 'porverificar',
+    '/admin/ventas/pos' => 'pos', '/admin/ventas' => 'ventas',
+    '/admin/productos' => 'productos', '/admin/categorias' => 'categorias', '/admin/inventario' => 'inventario',
+    '/admin/reportes' => 'reportes', '/canchas' => 'canchas',
+];
+$tabActivaAdm = $adminMenuActivo;
+$mejorLargoAdm = 0;
+foreach ($tabPorRutaAdm as $prefijoNav => $claveNav) {
+    if (($rutaAdm === $prefijoNav || str_starts_with($rutaAdm, $prefijoNav . '/')) && strlen($prefijoNav) > $mejorLargoAdm) {
+        $tabActivaAdm = $claveNav;
+        $mejorLargoAdm = strlen($prefijoNav);
+    }
+}
+// Caja: las pestañas de /admin/pagos se distinguen por ?tab= (revision | pendientes | historial)
+if ($tabActivaAdm === 'pagos') { $tabActivaAdm = 'porverificar'; }
+if ($tabActivaAdm === 'porverificar' && str_starts_with($rutaAdm, '/admin/pagos')) {
+    $tabPagosAdm = (string)($_GET['tab'] ?? 'revision');
+    $tabActivaAdm = match ($tabPagosAdm) { 'pendientes' => 'cobrar', 'historial', 'pagadas' => 'historial', default => 'porverificar' };
+}
+// Grupo activo = el grupo que contiene esa pestaña
+$grupoActivoAdm = $tabActivaAdm;
+$tabsGrupoAdm = [];
+foreach ($nav as $itemNav) {
+    foreach ($itemNav['tabs'] as $tabNav) {
+        if ($tabNav['key'] === $tabActivaAdm) {
+            $grupoActivoAdm = $itemNav['key'];
+            $tabsGrupoAdm = $itemNav['tabs'];
+        }
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -46,10 +109,11 @@ $nav = [
 <body class="adm-standalone">
 
 <style>
-    body.adm-standalone { background: #e8edf3; margin: 0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
+    html { background: #f4f7fb; }
+    body.adm-standalone { background: #f4f7fb; margin: 0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
     .adm-page { min-height: 100vh; }
-    .adm-wrap { display: flex; gap: 0; align-items: stretch; min-height: 100vh; }
-    .adm-side { width: 220px; flex-shrink: 0; background: linear-gradient(180deg, #0b1e33 0%, #081424 100%); color: #fff; display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+    .adm-wrap { display: flex; gap: 0; align-items: stretch; min-height: 100vh; padding-left: 220px; }
+    .adm-side { width: 220px; flex-shrink: 0; background: linear-gradient(180deg, #0b1e33 0%, #081424 100%); color: #fff; display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 1030; overflow-y: auto; overscroll-behavior: contain; }
     .adm-burger { display: none; border: none; background: none; font-size: 1.4rem; color: #101c33; margin-right: auto; padding: 4px 8px; }
     .adm-overlay { display: none; }
     .adm-logo { display: flex; align-items: center; gap: 10px; padding: 20px 18px 16px; }
@@ -61,6 +125,14 @@ $nav = [
     .adm-nav a i { font-size: 1.15rem; }
     .adm-nav a:hover { background: rgba(255,255,255,.06); color: #fff; }
     .adm-nav a.on { background: #1a7a3a; color: #fff; font-weight: 700; }
+    .adm-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 16px; }
+    .adm-tabs a { display: inline-flex; align-items: center; padding: 8px 16px; border-radius: 999px; background: #fff; border: 1px solid #dbe3ec; color: #334155; font-size: .88rem; font-weight: 700; text-decoration: none; white-space: nowrap; }
+    .adm-tabs a:hover { border-color: #1a7a3a; color: #1a7a3a; }
+    .adm-tab-badge { display: inline-block; min-width: 20px; padding: 1px 6px; margin-left: 6px; border-radius: 10px; background: #dc2626; color: #fff; font-size: .7rem; font-weight: 800; text-align: center; }
+    .adm-tabs a.on { background: #1a7a3a; border-color: #1a7a3a; color: #fff; }
+    .adm-grp { font-size: .66rem; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: #6f87a0; padding: 14px 14px 4px; }
+    .adm-grp:first-child { padding-top: 4px; }
+    @media (max-width: 991px) { .adm-nav a { padding: 12px 14px; font-size: .95rem; } }
     .adm-side-foot { margin-top: auto; padding: 14px; }
     .adm-slogan { position: relative; border-radius: 12px; overflow: hidden; padding: 40px 14px 16px; text-align: left; background: linear-gradient(to top, rgba(4,10,18,.92) 20%, rgba(4,10,18,.45) 60%, rgba(4,10,18,.25) 100%), url('https://images.unsplash.com/photo-1522778119026-d647f0596c20?w=400&q=60&fit=crop') center/cover; }
     .adm-slogan .b { font-size: 2.2rem; }
@@ -83,7 +155,7 @@ $nav = [
     .adm-avatar { width: 42px; height: 42px; border-radius: 50%; background: #1a7a3a; color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
     .adm-user strong { display: block; font-size: .86rem; color: #101c33; }
     .adm-user small { display: block; font-size: .7rem; color: #7c8aa0; }
-    .adm-main { flex: 1; min-width: 0; background: #f4f7fb; padding: 22px 26px 30px; color: #101c33; }
+    .adm-main { flex: 1; min-width: 0; min-height: 100vh; background: #f4f7fb; padding: 22px 26px 30px; color: #101c33; }
     .adm-h1 { font-size: 1.8rem; font-weight: 800; margin: 0; }
     .adm-sub { color: #7c8aa0; margin: 2px 0 0; font-size: .9rem; }
     .adm-date { display: inline-flex; align-items: center; gap: 10px; background: #fff; border: 1px solid #e8eef4; border-radius: 12px; padding: 6px 6px 6px 10px; font-size: .82rem; font-weight: 600; box-shadow: 0 1px 4px rgba(16,28,51,.06); transition: all .15s; position: relative; }
@@ -114,9 +186,9 @@ $nav = [
     .panel { background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 1px 3px rgba(16,28,51,.07); height: 100%; display: flex; flex-direction: column; }
     .panel-2 { background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 1px 3px rgba(16,28,51,.07); }
     .panel h3 { font-size: 1.02rem; font-weight: 800; margin: 0 0 2px; }
-    .panel .psub { font-size: .78rem; color: #7c8aa0; }
+    .panel .psub { font-size: .85rem; color: #6b7a90; }
     .link-more { font-size: .78rem; font-weight: 700; color: #2563eb; text-decoration: none; white-space: nowrap; }
-    .legend { display: flex; gap: 8px 14px; font-size: .72rem; color: #7c8aa0; margin: 12px 0 14px; flex-wrap: wrap; }
+    .legend { display: flex; gap: 8px 14px; font-size: .82rem; color: #6b7a90; margin: 12px 0 14px; flex-wrap: wrap; }
     .legend i.dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 5px; }
     .occ-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: .72rem; }
     .occ-table th, .occ-table td { padding: 3px 4px; text-align: center; }
@@ -128,15 +200,19 @@ $nav = [
     .cell.mant { background: #ef4444; }
     .btn-cal { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; background: #1a7a3a; color: #fff; font-weight: 700; border-radius: 10px; padding: 12px; margin-top: 14px; text-decoration: none; font-size: .85rem; }
     .btn-cal:hover { background: #135c2b; color: #fff; }
-    .tbl { width: 100%; font-size: .78rem; margin-bottom: 0; }
-    .tbl thead th { background: #f4f7fb; color: #7c8aa0; font-size: .68rem; border: none; padding: 9px 10px; white-space: nowrap; }
+    .tbl { width: 100%; font-size: .86rem; margin-bottom: 0; }
+    .tbl thead th { background: #f4f7fb; color: #64748b; font-size: .74rem; border: none; padding: 10px 10px; white-space: nowrap; }
     .tbl td { border-color: #eef2f7; vertical-align: middle; padding: 10px; }
     .tbl .fh small { display: block; color: #7c8aa0; }
-    .pill { display: inline-block; font-size: .66rem; font-weight: 700; border-radius: 8px; padding: 3px 10px; white-space: nowrap; }
+    .pill { display: inline-block; font-size: .76rem; font-weight: 700; border-radius: 8px; padding: 4px 10px; white-space: nowrap; }
     .pill.ok { background: #d9efe0; color: #166534; }
     .pill.warn { background: #fbeecb; color: #92400e; }
     .pill.bad { background: #fbdcdc; color: #991b1b; }
     .pill.fin { background: #e2e8f0; color: #475569; }
+    .pill.info { background: #e0f2fe; color: #0369a1; }
+    .pill.mut { background: #f1f5f9; color: #64748b; }
+    /* Amarillo de Bootstrap casi no se lee sobre blanco: se usa ámbar oscuro en el panel */
+    .adm-main .text-warning { color: #b45309 !important; }
     .dots-btn { border: none; background: none; color: #7c8aa0; font-size: 1rem; }
     .donut { width: 168px; height: 168px; border-radius: 50%; margin: 14px auto 8px; display: flex; align-items: center; justify-content: center; }
     .donut-in { width: 112px; height: 112px; border-radius: 50%; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; }
@@ -148,8 +224,27 @@ $nav = [
     .crec-box { background: #eef7f0; border-radius: 10px; padding: 10px 12px; display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: .78rem; }
     .crec-box strong { color: #1a7a3a; }
     .crec-box small { color: #7c8aa0; display: block; }
+    /* Tablas como tarjetas en celular (Reservas y Pagos) */
+    .btn-mini .btn-txt { display: none; }
+    @media (max-width: 767px) {
+        /* La tabla se muestra como tarjetas: una por reserva, mismos formularios y botones */
+        .tbl-cards, .tbl-cards tbody { display: block; width: 100%; }
+        .tbl-cards thead { display: none; }
+        .tbl-cards tr { display: block; background: #fff; border: 1px solid #dbe3ec; border-left: 4px solid #1a7a3a; border-radius: 12px; margin-bottom: 14px; padding: 8px 0; box-shadow: 0 1px 3px rgba(16,28,51,.07); }
+        .tbl-cards td { display: block; border: 0; padding: 7px 14px; font-size: .9rem; }
+        .tbl-cards td[data-label]::before { content: attr(data-label); display: block; font-size: .7rem; font-weight: 700; color: #7c8aa0; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 2px; }
+        .tbl-cards .pill { font-size: .78rem; padding: 4px 12px; }
+        .tbl-cards .est-select { font-size: .9rem; max-width: 100%; width: 100%; padding: 8px 10px; margin-top: 8px; }
+        .tbl-cards td.td-acc { white-space: normal !important; display: flex; flex-wrap: wrap; gap: 8px; border-top: 1px solid #eef2f7; margin-top: 6px; padding-top: 12px; }
+        .tbl-cards td.td-acc::before { display: none; }
+        .tbl-cards td.td-acc form { display: inline-flex !important; margin: 0; }
+        .tbl-cards .btn-mini { width: auto; min-height: 42px; padding: 0 14px; margin: 0; gap: 6px; font-size: .88rem; font-weight: 600; }
+        .tbl-cards .btn-mini .btn-txt { display: inline; }
+        .tbl-cards .fh small { display: inline; margin-left: 8px; }
+    }
     @media (max-width: 991px) {
-        .adm-side { position: fixed; left: 0; top: 0; z-index: 1050; height: 100vh; transform: translateX(-105%); transition: transform .2s ease; box-shadow: 8px 0 24px rgba(0,0,0,.35); }
+        .adm-wrap { padding-left: 0; }
+        .adm-side { position: fixed; left: 0; top: 0; bottom: 0; z-index: 1050; transform: translateX(-105%); transition: transform .2s ease; box-shadow: 8px 0 24px rgba(0,0,0,.35); }
         .adm-side.open { transform: none; }
         .adm-burger { display: block; }
         .adm-overlay.show { display: block; position: fixed; inset: 0; background: rgba(4,10,18,.5); z-index: 1040; }
@@ -170,8 +265,8 @@ $nav = [
             <span><strong>TOP GOL</strong><small>MÁS QUE FÚTBOL</small></span>
         </div>
         <nav class="adm-nav">
-            <?php foreach ($nav as $item): ?>
-                <a href="<?= $item['href'] ?>" class="<?= $adminMenuActivo === $item['key'] ? 'on' : '' ?>"><i class="bi <?= $item['ico'] ?>"></i> <?= $item['label'] ?></a>
+            <?php foreach ($nav as $itemNav): ?>
+                <a href="<?= $itemNav['href'] ?>" class="<?= $grupoActivoAdm === $itemNav['key'] ? 'on' : '' ?>"><i class="bi <?= $itemNav['ico'] ?>"></i> <?= $itemNav['label'] ?></a>
             <?php endforeach; ?>
         </nav>
         <div class="adm-side-foot">
@@ -216,7 +311,15 @@ $nav = [
                 </ul>
             </div>
         </header>
+        <?php if (count($tabsGrupoAdm) > 1): ?>
+            <nav class="adm-tabs" aria-label="Pantallas del grupo">
+                <?php foreach ($tabsGrupoAdm as $tabNav): ?>
+                    <a href="<?= $tabNav['href'] ?>" class="<?= $tabActivaAdm === $tabNav['key'] ? 'on' : '' ?>"<?= $tabActivaAdm === $tabNav['key'] ? ' aria-current="page"' : '' ?>><?= htmlspecialchars($tabNav['label']) ?><?php if (!empty($tabNav['badge'])): ?> <span class="adm-tab-badge"><?= (int)$tabNav['badge'] ?></span><?php endif; ?></a>
+                <?php endforeach; ?>
+            </nav>
+        <?php endif; ?>
         <div id="admToastWrap" class="adm-toast"></div>
+        <?= renderFlashMessages() /* avisos de éxito/error de las acciones del panel */ ?>
         <script>
         (function(){
             var countEl=document.getElementById('admBellCount');
@@ -258,13 +361,6 @@ $nav = [
                 listEl.innerHTML=html;
             }
 
-            function fetchList(){
-                fetch(apiList, {credentials:'same-origin'})
-                    .then(function(r){ return r.json(); })
-                    .then(function(d){ renderCount(d.count); renderList(d.items); })
-                    .catch(function(){});
-            }
-
             window.marcarLeida=function(e,id){
                 // deja navegar, marca en segundo plano
                 fetch('<?= url('/api/notificaciones/') ?>'+id+'/leer', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'csrf_token='+encodeURIComponent(csrf), credentials:'same-origin'});
@@ -286,41 +382,36 @@ $nav = [
                 try{ var a=new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA=='); a.play().catch(function(){}); }catch(e){}
             }
 
-            // Tiempo real: SSE (push sin polling) - efecto WebSocket sin necesidad de daemon.
-            // Para WebSocket puro ws://localhost:8080 habilita extension=sockets y ejecuta: php websocket_server.php
-            var es = null;
-            var lastId = 0;
-            function connectSSE(){
-                try{
-                    var url = apiStream + (lastId ? '?last='+lastId : '');
-                    es = new EventSource(url);
-                    es.addEventListener('count', function(e){
-                        try{ var d=JSON.parse(e.data); renderCount(d.count); }catch(err){}
-                    });
-                    es.addEventListener('notificacion', function(e){
-                        try{
-                            var n=JSON.parse(e.data);
-                            lastId = Math.max(lastId, parseInt(n.id)||0);
-                            showToast(n);
-                            fetchList();
-                        }catch(err){}
-                    });
-                    es.onerror = function(){
-                        try{ es.close(); }catch(err){}
-                        setTimeout(connectSSE, 3000);
-                    };
-                }catch(e){
-                    setInterval(fetchList, 10000);
-                }
+            // Avisos: se consulta /api/notificaciones cada 20 s (solo con la pestaña visible).
+            // Ya no se deja una conexión abierta por página: con el servidor de desarrollo (php -S)
+            // una sola conexión larga detenía todas las demás páginas del panel.
+            var lastId = null;
+            var POLL_MS = 20000;
+            function fetchList(){
+                fetch(apiList, {credentials:'same-origin'})
+                    .then(function(r){ return r.json(); })
+                    .then(function(d){
+                        renderCount(d.count); renderList(d.items);
+                        var items = d.items || [];
+                        var maxId = items.reduce(function(m,n){ return Math.max(m, parseInt(n.id)||0); }, 0);
+                        if(lastId !== null){
+                            // avisos nuevos desde la última consulta (de más antiguo a más reciente)
+                            items.filter(function(n){ return (parseInt(n.id)||0) > lastId; })
+                                 .sort(function(x,y){ return x.id - y.id; })
+                                 .forEach(showToast);
+                        }
+                        lastId = Math.max(lastId || 0, maxId);
+                    })
+                    .catch(function(){});
             }
             fetchList();
-            connectSSE();
-            // Intento opcional WebSocket nativo en paralelo (si corre websocket_server.php)
+            setInterval(function(){ if(!document.hidden) fetchList(); }, POLL_MS);
+            document.addEventListener('visibilitychange', function(){ if(!document.hidden) fetchList(); });
+            // Intento opcional WebSocket nativo en paralelo (si corre websocket_server.php): igual que antes
             if('WebSocket' in window){
                 try{
                     var ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.hostname+':8080');
-                    ws.onopen=function(){ if(es){ try{es.close();}catch(e){} } };
-                    ws.onmessage=function(ev){ try{ var d=JSON.parse(ev.data); if(d.type==='notificacion'){ showToast(d); fetchList(); }}catch(err){} };
+                    ws.onmessage=function(ev){ try{ var d=JSON.parse(ev.data); if(d.type==='notificacion'){ lastId = Math.max(lastId || 0, parseInt(d.id)||0); showToast(d); fetchList(); }}catch(err){} };
                 }catch(e){}
             }
         })();

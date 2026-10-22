@@ -125,6 +125,7 @@ class CategoriaController extends Controller {
      */
     public function delete(string|int $id): void {
         $this->requireAdmin();
+        $this->soloPost('/admin/categorias', 'Para eliminar una categoría usa el botón de la lista: abrir el enlace ya no ejecuta la acción.');
         $this->validateCsrf();
 
         $idCat = (int)$id;

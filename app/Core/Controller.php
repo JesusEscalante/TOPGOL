@@ -95,6 +95,18 @@ abstract class Controller {
     }
 
     /**
+     * Las acciones que cambian datos solo se ejecutan por POST (con token CSRF).
+     * Si alguien abre la URL por GET (enlace viejo, favorito, robo de clic), no se ejecuta nada:
+     * se redirige al listado con un aviso.
+     */
+    protected function soloPost(string $redirigirA, string $mensaje): void {
+        if (strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) !== 'POST') {
+            sessionFlash('info', $mensaje, 'info');
+            $this->redirect($redirigirA);
+        }
+    }
+
+    /**
      * Exige que el usuario NO haya iniciado sesión (para páginas de login/registro)
      */
     protected function requireGuest(): void {

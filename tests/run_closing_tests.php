@@ -7,21 +7,31 @@ declare(strict_types=1);
  * ====================================================================
  */
 
-require_once 'c:/Users/MSI/Documents/TOPGOL/config/config.php';
-require_once 'c:/Users/MSI/Documents/TOPGOL/app/Config/Database.php';
-require_once 'c:/Users/MSI/Documents/TOPGOL/app/Core/Model.php';
-require_once 'c:/Users/MSI/Documents/TOPGOL/app/Helpers/helpers.php';
-require_once 'c:/Users/MSI/Documents/TOPGOL/app/Models/Cancha.php';
-require_once 'c:/Users/MSI/Documents/TOPGOL/app/Models/Categoria.php';
-require_once 'c:/Users/MSI/Documents/TOPGOL/app/Models/Espacio.php';
-require_once 'c:/Users/MSI/Documents/TOPGOL/app/Models/MovimientoInventario.php';
-require_once 'c:/Users/MSI/Documents/TOPGOL/app/Models/Notificacion.php';
-require_once 'c:/Users/MSI/Documents/TOPGOL/app/Models/Pago.php';
-require_once 'c:/Users/MSI/Documents/TOPGOL/app/Models/Producto.php';
-require_once 'c:/Users/MSI/Documents/TOPGOL/app/Models/Reserva.php';
-require_once 'c:/Users/MSI/Documents/TOPGOL/app/Models/Venta.php';
+require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../app/Config/Database.php';
+require_once __DIR__ . '/../app/Core/Model.php';
+require_once __DIR__ . '/../app/Helpers/helpers.php';
+require_once __DIR__ . '/../app/Models/Cancha.php';
+require_once __DIR__ . '/../app/Models/Categoria.php';
+require_once __DIR__ . '/../app/Models/Espacio.php';
+require_once __DIR__ . '/../app/Models/MovimientoInventario.php';
+require_once __DIR__ . '/../app/Models/Notificacion.php';
+require_once __DIR__ . '/../app/Models/Pago.php';
+require_once __DIR__ . '/../app/Models/Producto.php';
+require_once __DIR__ . '/../app/Models/Reserva.php';
+require_once __DIR__ . '/../app/Models/Venta.php';
 
 $pdo = App\Config\Database::getConnection();
+
+// Conteos ANTES de correr las pruebas: la prueba 8 comprueba que las pruebas no alteran los datos
+$conteos = static function (PDO $pdo): array {
+    $r = [];
+    foreach (['reservas', 'pagos', 'ventas', 'productos', 'movimientos_inventario', 'canchas'] as $tabla) {
+        $r[$tabla] = (int)$pdo->query("SELECT COUNT(*) FROM {$tabla}")->fetchColumn();
+    }
+    return $r;
+};
+$conteosAntes = $conteos($pdo);
 $modeloCancha = new App\Models\Cancha();
 $modeloPago = new App\Models\Pago();
 $modeloProducto = new App\Models\Producto();
@@ -192,31 +202,28 @@ $test("7. Caja diaria y dashboard con el mismo total de ingresos", function() us
 });
 
 // 8. Reservas, pagos, ventas e inventario sin regresiones
-$test("8. Reservas, pagos, ventas e inventario sin regresiones", function() use ($pdo, $modeloProducto, $modeloReserva) {
-    // Verificar integridad de tablas y conteos
-    $cReservas = $pdo->query("SELECT COUNT(*) FROM reservas")->fetchColumn();
-    $cPagos = $pdo->query("SELECT COUNT(*) FROM pagos")->fetchColumn();
-    $cVentas = $pdo->query("SELECT COUNT(*) FROM ventas")->fetchColumn();
-    $cProds = $pdo->query("SELECT COUNT(*) FROM productos")->fetchColumn();
-    $cKardex = $pdo->query("SELECT COUNT(*) FROM movimientos_inventario")->fetchColumn();
-
-    if ($cReservas != 6) throw new Exception("Conteo de reservas alterado: {$cReservas} != 6");
-    if ($cPagos != 5) throw new Exception("Conteo de pagos alterado: {$cPagos} != 5");
-    if ($cVentas != 2) throw new Exception("Conteo de ventas alterado: {$cVentas} != 2");
-    if ($cProds != 8) throw new Exception("Conteo de productos alterado: {$cProds} != 8");
-    if ($cKardex != 4) throw new Exception("Conteo de movimientos kardex alterado: {$cKardex} != 4");
+$test("8. Reservas, pagos, ventas e inventario sin regresiones", function() use ($pdo, $modeloProducto, $conteos, $conteosAntes) {
+    // Compara con los conteos tomados ANTES de correr las pruebas (no con números fijos)
+    $despues = $conteos($pdo);
+    foreach ($conteosAntes as $tabla => $antes) {
+        if ($despues[$tabla] !== $antes) {
+            throw new Exception("Las pruebas alteraron {$tabla}: antes={$antes}, después={$despues[$tabla]}");
+        }
+    }
 
     // Verificar valorización de inventario
     $val = $modeloProducto->valorizacion();
     if ($val <= 0.0) throw new Exception("Valorización de inventario es 0 o negativa");
 
-    // Verificar que canchas no tengan colisiones
-    $canchas = $pdo->query("SELECT COUNT(*) FROM canchas")->fetchColumn();
-    if ($canchas != 6) throw new Exception("Conteo de canchas alterado: {$canchas} != 6");
-
-    return "0 regresiones: 6 reservas, 5 pagos, 2 ventas, 8 productos, 4 movimientos kardex, 6 canchas. Valorización PVP=S/ " . number_format($val, 2) . ".";
+    return "0 regresiones: " . implode(', ', array_map(static fn($k, $v) => "{$v} {$k}", array_keys($despues), $despues)) . " (iguales antes y después). Valorización PVP=S/ " . number_format($val, 2) . ".";
 });
 
 echo "\n============================================================\n";
-echo "TODAS LAS PRUEBAS COMPLETADAS CON ÉXITO.\n";
+$fallidas = count(array_filter($resultados, static fn($r) => !$r['ok']));
+if ($fallidas === 0) {
+    echo "TODAS LAS PRUEBAS COMPLETADAS CON ÉXITO.\n";
+} else {
+    echo "HAY {$fallidas} PRUEBA(S) FALLIDA(S).\n";
+}
 echo "============================================================\n";
+exit($fallidas === 0 ? 0 : 1);

@@ -43,7 +43,7 @@ declare(strict_types=1);
                             <label for="telefono" class="form-label fw-semibold">Teléfono / WhatsApp</label>
                             <div class="input-group">
                                 <span class="input-group-text bg-light"><i class="bi bi-whatsapp text-success"></i></span>
-                                <input type="tel" class="form-control" id="telefono" name="telefono" placeholder="+51 987 654 321">
+                                <input type="tel" class="form-control" id="telefono" name="telefono" placeholder="+51 9XX XXX XXX">
                             </div>
                         </div>
 

@@ -32,6 +32,9 @@ class HomeController extends Controller {
             $slotsOcupados[(int)$c['id']] = $modeloReserva->obtenerSlotsOcupados((int)$c['id'], $hoy);
         }
 
+        // Próximos horarios libres de hoy/mañana: una sola consulta para todas las canchas
+        $horariosLibres = $modeloReserva->proximosHorariosLibres(array_map(static fn($c) => (int)$c['id'], $canchas));
+
         $estadisticas = null;
         if (isAdmin()) {
             $modeloUsuario = new Usuario();
@@ -46,6 +49,7 @@ class HomeController extends Controller {
             'estadisticas'  => $estadisticas,
             'slotsOcupados' => $slotsOcupados,
             'fechaSlots'    => $hoy,
+            'horariosLibres' => $horariosLibres,
         ]);
     }
 }

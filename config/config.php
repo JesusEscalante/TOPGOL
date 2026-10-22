@@ -60,6 +60,25 @@ if (!empty($host)) {
 define('DEFAULT_CONTROLLER', 'Home');
 define('DEFAULT_METHOD', 'index');
 
+// Reservas: paso (en minutos) de la hora de inicio. 30 => solo :00 y :30 (18:00, 18:30...).
+// Si algun dia se cambia (10, 15, 20...), todo el sistema se adapta. Debe dividir 60 de forma exacta.
+// La duracion siempre va en bloques de 30 min.
+define('RESERVA_PASO_MINUTOS', 30);
+define('RESERVA_DURACION_BLOQUE_MIN', 30);
+
+// Tolerancia de llegada (minutos desde la hora de la reserva). Es la UNICA fuente del valor:
+// la usan el aviso al cliente, el control de asistencia y los mensajes de WhatsApp.
+define('TOLERANCIA_MINUTOS', 10);
+
+// Plazo ESTIMADO en que el encargado revisa un comprobante de pago (texto que ve el cliente).
+// Es una politica propuesta por el equipo: no es automatica ni garantizada, y NO es la tolerancia de la hora de juego.
+define('VERIFICACION_PAGO_PLAZO', '10 a 15 minutos');
+
+// Espacio de cumpleanos / reuniones: valor por hora (PROVISIONAL, por confirmar con el encargado).
+// Cada cancha opcional se suma con el precio_hora de la propia cancha (S/ 60 por hora).
+define('ESPACIO_PRECIO_HORA', 60.00);
+define('ESPACIO_PRECIO_PROVISIONAL', true);
+
 // Configuracion de Base de Datos
 define('DB_HOST', $_ENV['DB_HOST'] ?? 'localhost');
 define('DB_PORT', $_ENV['DB_PORT'] ?? '3306');

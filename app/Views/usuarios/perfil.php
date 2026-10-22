@@ -76,7 +76,7 @@ $desde = isset($usuario['created_at']) ? date('d/m/Y', strtotime((string)$usuari
                                 <label for="telefono" class="form-label fw-semibold">Número de contacto (celular / WhatsApp)</label>
                                 <div class="input-group">
                                     <span class="input-group-text" style="background:#f8fafc; font-weight:700; color:#334155; border-color:#e2e8f0;">+51</span>
-                                    <input type="tel" class="form-control" id="telefono" name="telefono" value="<?= htmlspecialchars(preg_replace('/^\+51\s*/', '', (string)($usuario['telefono'] ?? ''))) ?>" placeholder="987 654 321">
+                                    <input type="tel" class="form-control" id="telefono" name="telefono" value="<?= htmlspecialchars(preg_replace('/^\+51\s*/', '', (string)($usuario['telefono'] ?? ''))) ?>" placeholder="9XX XXX XXX">
                                 </div>
                             </div>
                         </div>

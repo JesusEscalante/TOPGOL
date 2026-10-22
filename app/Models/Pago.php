@@ -229,8 +229,8 @@ class Pago extends Model {
             return ['ok' => false, 'error' => 'El monto a cobrar debe ser mayor a S/ 0.00.'];
         }
 
-        if (!in_array($metodo, ['efectivo', 'niubiz'], true)) {
-            return ['ok' => false, 'error' => 'Método de pago no válido. Selecciona Efectivo o Niubiz (POS).'];
+        if (!in_array($metodo, ['efectivo', 'yape', 'niubiz'], true)) {
+            return ['ok' => false, 'error' => 'Método de pago no válido. Selecciona Efectivo, Yape o Niubiz (POS).'];
         }
 
         // Obtener datos actuales de la reserva
@@ -339,8 +339,8 @@ class Pago extends Model {
             return ['ok' => false, 'error' => 'El monto del grupo debe ser mayor a S/ 0.00.'];
         }
 
-        if (!in_array($metodo, ['efectivo', 'niubiz'], true)) {
-            return ['ok' => false, 'error' => 'Método de pago no válido. Selecciona Efectivo o Niubiz.'];
+        if (!in_array($metodo, ['efectivo', 'yape', 'niubiz'], true)) {
+            return ['ok' => false, 'error' => 'Método de pago no válido. Selecciona Efectivo, Yape o Niubiz.'];
         }
 
         $sql = "SELECT id, total_pago, estado FROM reservas WHERE evento_grupo = ? AND estado != 'cancelada' ORDER BY id ASC FOR UPDATE";
@@ -887,5 +887,19 @@ class Pago extends Model {
             'dias'                 => array_values($diasMap),
             'transacciones'        => $movimientos,
         ];
+    }
+
+    /**
+     * Monto de los comprobantes en revisión por reserva (una sola consulta).
+     *
+     * @return array<int, float> reserva_id => monto
+     */
+    public function montosEnRevision(): array {
+        $filas = $this->select("SELECT reserva_id, SUM(monto) AS monto FROM {$this->tabla} WHERE estado = 'en_revision' GROUP BY reserva_id");
+        $out = [];
+        foreach ($filas as $f) {
+            $out[(int)$f['reserva_id']] = (float)$f['monto'];
+        }
+        return $out;
     }
 }

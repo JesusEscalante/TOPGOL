@@ -66,7 +66,7 @@
                             <label class="form-label fw-semibold" style="font-size:.8rem;">Celular / WhatsApp</label>
                             <div class="input-group">
                                 <span class="input-group-text" style="background:#f8fafc; font-weight:700; color:#334155; border-color:#e2e8f0;">+51</span>
-                                <input type="tel" class="form-control" name="telefono" value="<?= htmlspecialchars(preg_replace('/^\+51\s*/', '', $_SESSION['usuario_telefono'] ?? '')) ?>" placeholder="987 654 321">
+                                <input type="tel" class="form-control" name="telefono" value="<?= htmlspecialchars(preg_replace('/^\+51\s*/', '', $_SESSION['usuario_telefono'] ?? '')) ?>" placeholder="9XX XXX XXX">
                             </div>
                         </div>
                         <div class="col-md-6">

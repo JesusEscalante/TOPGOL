@@ -34,20 +34,27 @@
                                 <td>
                                     <?= date('d/m/Y', strtotime($s['fecha'])) ?>
                                     <br>
-                                    <small class="text-muted"><?= date('H:i', strtotime($s['hora_inicio'])) ?></small>
+                                    <small class="text-muted"><?= date('H:i', strtotime($s['hora_inicio'])) ?><?= !empty($s['hora_fin']) ? ' - ' . date('H:i', strtotime($s['hora_fin'])) : '' ?></small>
+                                    <?php foreach (($canchasPorSolicitud[(int)$s['id']] ?? []) as $cc): ?>
+                                        <br><span class="badge bg-light text-dark border"><?= htmlspecialchars($cc['nombre']) ?></span>
+                                    <?php endforeach; ?>
                                 </td>
-                                <td><?= (float)$s['duracion_horas'] ?> h</td>
+                                <td><?= htmlspecialchars(formatoDuracionHoras((float)$s['duracion_horas'])) ?>
+                                    <?php if ($s['total_estimado'] !== null): ?>
+                                        <br><small class="text-muted" title="Estimado provisional, por confirmar">Est. S/ <?= number_format((float)$s['total_estimado'], 2) ?></small>
+                                    <?php endif; ?>
+                                </td>
                                 <td>
                                     <?php
                                         $cls = match($s['estado']) {
-                                            'pendiente' => 'bg-warning text-dark',
-                                            'cotizado' => 'bg-info text-dark',
-                                            'confirmado' => 'bg-success',
-                                            'rechazado', 'cancelado' => 'bg-danger',
-                                            default => 'bg-secondary'
+                                            'pendiente' => 'warn',
+                                            'cotizado' => 'info',
+                                            'confirmado' => 'ok',
+                                            'rechazado', 'cancelado' => 'bad',
+                                            default => 'fin'
                                         };
                                     ?>
-                                    <span class="badge <?= $cls ?>"><?= ucfirst($s['estado']) ?></span>
+                                    <span class="pill <?= $cls ?>"><?= ucfirst($s['estado']) ?></span>
                                     <?php if ($s['precio_cotizado']): ?>
                                         <br><small class="text-success fw-bold">S/ <?= number_format((float)$s['precio_cotizado'], 2) ?></small>
                                     <?php endif; ?>

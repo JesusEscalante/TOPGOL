@@ -411,7 +411,7 @@ $fmtNum   = static fn(float $n): string => number_format($n, 2);
                                 <td class="fw-bold">#<?= $item['id'] ?></td>
                                 <td>
                                     <span class="fw-semibold"><?= date('d/m/Y', strtotime($item['fecha'])) ?></span><br>
-                                    <small class="text-muted"><?= date('H:i', strtotime($item['hora_inicio'])) ?> - <?= date('H:i', strtotime($item['hora_fin'])) ?> (<?= $item['duracion_horas'] ?>h)</small>
+                                    <small class="text-muted"><?= date('H:i', strtotime($item['hora_inicio'])) ?> - <?= date('H:i', strtotime($item['hora_fin'])) ?> (<?= htmlspecialchars(formatoDuracionHoras((float)$item['duracion_horas'])) ?>)</small>
                                 </td>
                                 <td><?= htmlspecialchars($item['cancha_nombre']) ?></td>
                                 <td>

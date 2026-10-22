@@ -64,21 +64,38 @@ $tipoCorto = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11' 
     .kpi-card { background: #fff; border-radius: 14px; padding: 18px 20px; border: 1px solid #e8eef4; box-shadow: 0 2px 6px rgba(16,28,51,.04); transition: transform .15s, box-shadow .15s; height: 100%; display: flex; flex-direction: column; justify-content: space-between; }
     .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(16,28,51,.08); }
     .kpi-card-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
-    .kpi-card-title { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #64748b; margin: 0; }
+    .kpi-card-title { font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #64748b; margin: 0; }
     .kpi-card-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
     .kpi-icon-green { background: #eef7f0; color: #1a7a3a; }
     .kpi-icon-blue { background: #eff6ff; color: #2563eb; }
     .kpi-icon-amber { background: #fef3c7; color: #d97706; }
     .kpi-icon-red { background: #fee2e2; color: #dc2626; }
     .kpi-icon-purple { background: #f3e8ff; color: #7e22ce; }
-    .kpi-card-value { font-size: 1.85rem; font-weight: 800; color: #101c33; line-height: 1.15; }
-    .kpi-card-sub { font-size: .78rem; color: #7c8aa0; margin-top: 6px; }
-    .badge-pill-soft { font-size: .68rem; font-weight: 700; padding: 3px 8px; border-radius: 20px; }
+    .kpi-card-value { font-size: 2rem; font-weight: 800; color: #101c33; line-height: 1.15; }
+    .kpi-card-sub { font-size: .86rem; color: #64748b; margin-top: 6px; }
+    .badge-pill-soft { font-size: .78rem; font-weight: 700; padding: 3px 8px; border-radius: 20px; }
     .badge-soft-green { background: #eef7f0; color: #1a7a3a; border: 1px solid #bbf7d0; }
     .badge-soft-amber { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
     .badge-soft-red { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
     .badge-soft-blue { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
     .banner-demo { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; border-radius: 12px; padding: 12px 18px; margin-bottom: 20px; font-size: .84rem; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    /* Atención de hoy: lo urgente arriba */
+    .aten-box { background: #fff; border: 1px solid #e8eef4; border-radius: 14px; padding: 16px 18px; margin-bottom: 20px; box-shadow: 0 2px 6px rgba(16,28,51,.04); }
+    .aten-title { font-size: 1.05rem; font-weight: 800; margin: 0 0 12px; color: #101c33; }
+    .aten-item { display: flex; align-items: center; gap: 12px; height: 100%; padding: 12px 14px; border-radius: 12px; text-decoration: none; border: 1px solid transparent; }
+    .aten-item .n { font-size: 1.7rem; font-weight: 800; line-height: 1; min-width: 44px; text-align: center; }
+    .aten-item .t { font-size: .92rem; font-weight: 700; line-height: 1.25; }
+    .aten-item .t small { display: block; font-weight: 500; font-size: .8rem; opacity: .85; }
+    .aten-item.warn { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+    .aten-item.bad { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+    .aten-item.ok { background: #eef7f0; color: #166534; border-color: #bbf7d0; }
+    .aten-item:hover { filter: brightness(.97); }
+    .occ-table { font-size: .82rem; }
+    .occ-table .cell { height: 16px !important; }
+    @media (max-width: 767px) {
+        .kpi-card-value { font-size: 1.8rem; }
+        .kpi-card { padding: 16px; }
+    }
     .date-pill-nav { display: inline-flex; align-items: center; gap: 6px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 4px; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
 </style>
 
@@ -145,6 +162,40 @@ $tipoCorto = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11' 
         <a href="<?= url('/admin/reportes') ?>" class="btn btn-sm btn-dark fw-bold" style="border-radius:10px; padding:7px 14px;">
             <i class="bi bi-bar-chart-line me-1"></i> Reportes detallados
         </a>
+    </div>
+</div>
+
+<!-- ====================================================================
+     ATENCIÓN DE HOY: lo que necesita acción primero (mismos datos de abajo, sin cálculos nuevos)
+     ==================================================================== -->
+<?php $hayPendientes = ($pagosVerificar > 0 || $saldoPendiente > 0 || $reservasPendientes > 0 || $stockBajoConteo > 0); ?>
+<div class="aten-box">
+    <h2 class="aten-title"><i class="bi bi-lightning-charge-fill me-1 text-warning"></i> Atención de hoy <?= $hayPendientes ? '' : '· <span style="color:#166534;">todo al día</span>' ?></h2>
+    <div class="row g-2">
+        <div class="col-12 col-md-6 col-xl-3">
+            <a href="<?= url('/admin/pagos?tab=revision') ?>" class="aten-item <?= $pagosVerificar > 0 ? 'bad' : 'ok' ?>">
+                <span class="n"><?= (int)$pagosVerificar ?></span>
+                <span class="t">Comprobantes por verificar<small><?= $pagosVerificar > 0 ? 'Toca para revisarlos' : 'Ninguno pendiente' ?></small></span>
+            </a>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <a href="<?= url('/admin/reservas?vista=pendientes') ?>" class="aten-item <?= $reservasPendientes > 0 ? 'warn' : 'ok' ?>">
+                <span class="n"><?= (int)$reservasPendientes ?></span>
+                <span class="t">Reservas pendientes<small><?= $reservasPendientes > 0 ? 'Aún sin confirmar' : 'Todas confirmadas' ?></small></span>
+            </a>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <a href="<?= url('/admin/pagos?tab=pendientes') ?>" class="aten-item <?= $saldoPendiente > 0 ? 'warn' : 'ok' ?>">
+                <span class="n" style="font-size:1.3rem;">S/ <?= number_format((float)$saldoPendiente, 0) ?></span>
+                <span class="t">Saldo por cobrar<small><?= $saldoPendiente > 0 ? 'Se cobra en la cancha' : 'Sin saldos pendientes' ?></small></span>
+            </a>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <a href="<?= url('/admin/inventario') ?>" class="aten-item <?= $stockBajoConteo > 0 ? 'bad' : 'ok' ?>">
+                <span class="n"><?= (int)$stockBajoConteo ?></span>
+                <span class="t">Productos con poco stock<small><?= $stockBajoConteo > 0 ? 'Ver en Inventario y stock' : 'Inventario en orden' ?></small></span>
+            </a>
+        </div>
     </div>
 </div>
 
@@ -345,7 +396,7 @@ $tipoCorto = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11' 
                     <tbody>
                         <?php for ($h = 7; $h <= 23; $h++): $hStr = sprintf('%02d', $h); ?>
                             <tr>
-                                <th style="font-size:.68rem;"><?= $hStr ?>:00</th>
+                                <th style="font-size:.8rem;"><?= $hStr ?>:00</th>
                                 <?php foreach ($ocupCanchas as $c): ?>
                                     <td>
                                         <span style="display:flex; gap:3px;">
@@ -354,7 +405,7 @@ $tipoCorto = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11' 
                                                 $st = $ocupacion[(int)$c['id']][$slot] ?? 'libre';
                                             ?>
                                                 <span class="cell <?= $st === 'ocup' ? 'ocup' : ($st === 'mant' ? 'mant' : '') ?>"
-                                                      style="flex:1; height:12px; border-radius:2px;"
+                                                      style="flex:1; border-radius:3px;"
                                                       title="<?= $slot ?> - <?= htmlspecialchars($c['nombre']) ?> (<?= $st === 'ocup' ? 'Ocupada' : ($st === 'mant' ? 'Mantenimiento' : 'Libre') ?>)"></span>
                                             <?php endforeach; ?>
                                         </span>
@@ -365,11 +416,11 @@ $tipoCorto = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11' 
                     </tbody>
                 </table>
             </div>
-            <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap gap-1" style="font-size:.7rem; color:#7c8aa0;">
+            <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap gap-1" style="font-size:.8rem; color:#64748b;">
                 <span>◼ Bloque 1: :00 a :30 &nbsp;|&nbsp; ◼ Bloque 2: :30 a :00</span>
                 <span><?= $horasCanchaHoy ?> horas-cancha ocupadas (Capacidad base: <?= $capacidadHorasDia ?? 84 ?>h)</span>
             </div>
-            <div class="mt-2 text-muted" style="font-size:.68rem;">
+            <div class="mt-2 text-muted" style="font-size:.78rem;">
                 * <em>Horarios provisionales para cálculo operativo, preparados para confirmación final por la empresa. El encargado puede registrar reservas extraordinarias fuera de este intervalo.</em>
             </div>
         </div>
@@ -405,7 +456,7 @@ $tipoCorto = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11' 
                         <?php else: ?>
                             <?php foreach ($recientes as $r): ?>
                                 <?php
-                                    $estLbl = match ($r['estado']) { 'confirmada' => 'Confirmada', 'pendiente' => 'Pendiente', 'cancelada' => 'Cancelada', 'finalizada' => 'Finalizada', default => ucfirst($r['estado']) };
+                                    $estLbl = match ($r['estado']) { 'confirmada' => 'Confirmada', 'pendiente' => 'Pendiente', 'cancelada' => 'Cancelada', 'finalizada' => 'Completada', default => ucfirst($r['estado']) };
                                     $estCls = match ($r['estado']) { 'confirmada' => 'ok', 'pendiente' => 'warn', 'cancelada' => 'bad', 'finalizada' => 'fin', default => 'fin' };
                                     $pe = (string)($r['pago_estado'] ?? 'pendiente');
                                     $pagoLbl = match ($pe) { 'verificado' => 'Pagado', 'en_revision' => 'Por verificar', 'rechazado' => 'Rechazado', default => 'Pendiente' };
@@ -539,45 +590,6 @@ $tipoCorto = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11' 
                         <i class="dot" style="background:#2563eb;"></i>
                         <strong>Ventas de Productos:</strong> S/ <?= $fmtNum($prodsMontoHoy) ?> (<?= $pctProdsDonut ?>%)
                     </div>
-                </div>
-            <?php endif; ?>
-        </div>
-
-        <!-- Alerta de Stock Crítico -->
-        <div class="panel">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-                <h3 class="m-0">Alertas de inventario</h3>
-                <span class="badge <?= $stockBajoConteo > 0 ? 'bg-danger' : 'bg-success' ?>">
-                    <?= $stockBajoConteo ?> crítico(s)
-                </span>
-            </div>
-
-            <?php if (empty($productosStockCritico)): ?>
-                <div class="alert alert-success d-flex align-items-center gap-2 m-0 p-2 text-start small">
-                    <i class="bi bi-check-circle-fill"></i>
-                    <span>Todos los productos cuentan con existencias por encima de su stock mínimo.</span>
-                </div>
-            <?php else: ?>
-                <ul class="list-group list-group-flush small">
-                    <?php foreach ($productosStockCritico as $sc): ?>
-                        <li class="list-group-item d-flex align-items-center justify-content-between px-0 py-2">
-                            <div>
-                                <strong><?= htmlspecialchars($sc['nombre']) ?></strong>
-                                <small class="text-muted d-block"><?= htmlspecialchars($sc['categoria_nombre'] ?? 'General') ?></small>
-                            </div>
-                            <div class="text-end">
-                                <span class="badge <?= (int)$sc['stock'] === 0 ? 'bg-dark' : 'bg-danger' ?>">
-                                    <?= (int)$sc['stock'] === 0 ? 'Agotado' : (int)$sc['stock'] . ' ' . htmlspecialchars($sc['unidad'] ?? 'und') ?>
-                                </span>
-                                <small class="text-muted d-block">Mín: <?= (int)$sc['stock_minimo'] ?></small>
-                            </div>
-                        </li>
-                    <?php endforeach; ?>
-                </ul>
-                <div class="mt-2 text-end">
-                    <a href="<?= url('/admin/inventario') ?>" class="btn btn-sm btn-outline-dark fw-bold">
-                        <i class="bi bi-boxes me-1"></i> Gestionar en Kardex
-                    </a>
                 </div>
             <?php endif; ?>
         </div>

@@ -3,7 +3,9 @@ declare(strict_types=1);
 
 /** @var array<int, array<string, mixed>> $movimientos */
 /** @var array<int, array<string, mixed>> $productos */
+/** @var array<int, array<string, mixed>> $stockBajo */
 /** @var int $filtroProd */
+$stockBajo = $stockBajo ?? [];
 /** @var string $filtroTipo */
 /** @var string $filtroFecha */
 
@@ -30,6 +32,36 @@ $tiposLabels = [
             <i class="bi bi-cart-check me-1"></i> Venta rápida POS
         </a>
     </div>
+</div>
+
+<!-- Stock bajo: el aviso corto está en el Inicio (Atención de hoy); aquí va el detalle -->
+<div class="panel-2 mb-4" id="stock-bajo">
+    <div class="d-flex align-items-center justify-content-between mb-2">
+        <h3 class="m-0" style="font-size:1.02rem;font-weight:800;">Stock bajo</h3>
+        <span class="badge <?= $stockBajo ? 'bg-danger' : 'bg-success' ?>"><?= count($stockBajo) ?> producto(s)</span>
+    </div>
+    <?php if (empty($stockBajo)): ?>
+        <div class="alert alert-success d-flex align-items-center gap-2 m-0 p-2 small">
+            <i class="bi bi-check-circle-fill"></i> Todos los productos están por encima de su stock mínimo.
+        </div>
+    <?php else: ?>
+        <div class="table-responsive">
+            <table class="tbl tbl-cards align-middle">
+                <thead><tr><th>Producto</th><th>Estado</th><th>Stock actual</th><th>Mínimo</th></tr></thead>
+                <tbody>
+                    <?php foreach ($stockBajo as $sb): ?>
+                        <?php $agotado = (int)$sb['stock'] === 0; ?>
+                        <tr>
+                            <td data-label="Producto"><strong><?= htmlspecialchars((string)$sb['nombre']) ?></strong><small class="text-muted d-block"><?= htmlspecialchars((string)($sb['categoria_nombre'] ?? 'General')) ?></small></td>
+                            <td data-label="Estado"><span class="badge <?= $agotado ? 'bg-dark' : 'bg-danger' ?>"><?= $agotado ? 'Agotado' : 'Stock bajo' ?></span></td>
+                            <td data-label="Stock actual"><?= (int)$sb['stock'] ?> <?= htmlspecialchars((string)($sb['unidad'] ?? 'und')) ?></td>
+                            <td data-label="Mínimo"><?= (int)$sb['stock_minimo'] ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php endif; ?>
 </div>
 
 <!-- Filtros de Kardex -->

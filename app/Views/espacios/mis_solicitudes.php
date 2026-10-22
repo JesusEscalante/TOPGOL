@@ -46,7 +46,13 @@ $titulo = $titulo ?? 'Mis Solicitudes de Espacios';
 
                             <div class="mb-3" style="font-size: 0.9rem; color: #5b6b82;">
                                 <div class="mb-1"><i class="bi bi-calendar-event me-2 text-muted"></i> <strong>Fecha:</strong> <?= date('d/m/Y', strtotime($s['fecha'])) ?></div>
-                                <div class="mb-1"><i class="bi bi-clock me-2 text-muted"></i> <strong>Horario:</strong> <?= date('H:i', strtotime($s['hora_inicio'])) ?> (<?= (float)$s['duracion_horas'] ?> h)</div>
+                                <div class="mb-1"><i class="bi bi-clock me-2 text-muted"></i> <strong>Horario:</strong> <?= date('H:i', strtotime($s['hora_inicio'])) ?><?= !empty($s['hora_fin']) ? ' - ' . date('H:i', strtotime($s['hora_fin'])) : '' ?> (<?= htmlspecialchars(formatoDuracionHoras((float)$s['duracion_horas'])) ?>)</div>
+                                <?php $cs = $canchasPorSolicitud[(int)$s['id']] ?? []; if ($cs): ?>
+                                <div class="mb-1"><i class="bi bi-grid-3x3-gap me-2 text-muted"></i> <strong>Canchas:</strong> <?= htmlspecialchars(implode(', ', array_column($cs, 'nombre'))) ?></div>
+                                <?php endif; ?>
+                                <?php if ($s['total_estimado'] !== null): ?>
+                                <div class="mb-1"><i class="bi bi-cash-coin me-2 text-muted"></i> <strong>Total estimado:</strong> S/ <?= number_format((float)$s['total_estimado'], 2) ?> <small>(provisional)</small></div>
+                                <?php endif; ?>
                                 <div class="mb-1"><i class="bi bi-person me-2 text-muted"></i> <strong>Contacto:</strong> <?= htmlspecialchars($s['contacto_nombre']) ?></div>
                             </div>
 

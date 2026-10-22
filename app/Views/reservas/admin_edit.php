@@ -114,8 +114,16 @@ $tipoLabels = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11'
                     <div class="col-md-4">
                         <label for="hora_inicio" class="form-label">Hora de Inicio <span class="text-danger">*</span></label>
                         <select class="form-select" id="hora_inicio" name="hora_inicio" required>
+                            <?php
+                                // Una reserva antigua con minutos distintos (por ejemplo 13:20) conserva su hora en la lista
+                                $minutosPermitidos = reservaMinutosInicio();
+                                $horaActualRara = !in_array(substr($horaIniActual, 3, 2), $minutosPermitidos, true);
+                            ?>
+                            <?php if ($horaActualRara): ?>
+                                <option value="<?= htmlspecialchars($horaIniActual) ?>" selected><?= date('g:i A', strtotime($horaIniActual)) ?> (<?= htmlspecialchars($horaIniActual) ?>) · hora actual, se conserva</option>
+                            <?php endif; ?>
                             <?php for ($h = 7; $h <= 23; $h++): ?>
-                                <?php foreach (['00', '30'] as $mm): ?>
+                                <?php foreach ($minutosPermitidos as $mm): ?>
                                     <?php $slot = sprintf('%02d:%s', $h, $mm); ?>
                                     <option value="<?= $slot ?>" <?= $horaIniActual === $slot ? 'selected' : '' ?>>
                                         <?= date('g:i A', strtotime($slot)) ?> (<?= $slot ?>)
@@ -130,7 +138,7 @@ $tipoLabels = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11'
                         <select class="form-select" id="duracion_horas" name="duracion_horas" required>
                             <?php foreach ([0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6] as $d): ?>
                                 <?php
-                                    $lbl = $d == 0.5 ? '30 minutos (media hora)' : ($d == 1 ? '1 hora' : (fmod($d, 1) == 0.5 ? (int)floor($d) . 'h 30m' : $d . ' horas'));
+                                    $lbl = formatoDuracionHoras((float)$d);
                                 ?>
                                 <option value="<?= $d ?>" <?= (float)$duracionActual === (float)$d ? 'selected' : '' ?>><?= $lbl ?></option>
                             <?php endforeach; ?>
@@ -244,7 +252,7 @@ $tipoLabels = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11'
                         <select class="form-select" name="duracion_horas" required>
                             <?php foreach ([0.5, 1, 1.5, 2, 2.5, 3] as $d): ?>
                                 <option value="<?= $d ?>" <?= (float)$duracionActual === (float)$d ? 'selected' : '' ?>>
-                                    <?= $d == 0.5 ? '30 min' : ($d == 1 ? '1 hora' : $d . ' horas') ?>
+                                    <?= formatoDuracionHoras((float)$d) ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -292,7 +300,7 @@ $tipoLabels = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11'
                 </div>
                 <div class="d-flex justify-content-between">
                     <span class="text-muted">Tolerancia:</span>
-                    <strong class="text-success">10 minutos máx.</strong>
+                    <strong class="text-success"><?= toleranciaMinutos() ?> minutos máx.</strong>
                 </div>
             </div>
 
@@ -309,7 +317,7 @@ $tipoLabels = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11'
                     <select name="asistencia_estado" id="selAsistenciaLateral" class="form-select form-select-sm" required onchange="toggleLateralLiberar(this.value)">
                         <option value="sin_registrar" <?= ($reserva['asistencia_estado'] ?? '') === 'sin_registrar' ? 'selected' : '' ?>>Sin registrar</option>
                         <option value="presente" <?= ($reserva['asistencia_estado'] ?? '') === 'presente' ? 'selected' : '' ?>>Presente (Puntual / Tolerancia)</option>
-                        <option value="tardanza" <?= ($reserva['asistencia_estado'] ?? '') === 'tardanza' ? 'selected' : '' ?>>Tardanza (&gt;10 min)</option>
+                        <option value="tardanza" <?= ($reserva['asistencia_estado'] ?? '') === 'tardanza' ? 'selected' : '' ?>>Tardanza (&gt;<?= toleranciaMinutos() ?> min)</option>
                         <option value="retraso_confirmado" <?= ($reserva['asistencia_estado'] ?? '') === 'retraso_confirmado' ? 'selected' : '' ?>>Retraso notificado (En camino)</option>
                         <option value="no_asistio" <?= ($reserva['asistencia_estado'] ?? '') === 'no_asistio' ? 'selected' : '' ?>>No asistió</option>
                     </select>

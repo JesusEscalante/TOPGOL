@@ -8,6 +8,9 @@ $filtroEstado = $filtroEstado ?? '';
 $filtroPago = $filtroPago ?? '';
 $filtroAsistencia = $filtroAsistencia ?? '';
 $busqueda = $busqueda ?? '';
+$vista = $vista ?? 'todas';
+$conteos = $conteos ?? ['hoy' => 0, 'verificar' => 0, 'confirmadas' => 0, 'pendientes' => 0, 'todas' => 0];
+$hoyVista = date('Y-m-d');
 
 $estLbl = static fn(string $e): string => match ($e) {
     'confirmada' => 'Confirmada', 'pendiente' => 'Pendiente',
@@ -57,16 +60,59 @@ $asistCls = static fn(string $a): string => match ($a) {
     .btn-mini.wa:hover { background: #16a34a; color: #fff; border-color: #16a34a; }
     .btn-mini.asist { color: #1d4ed8; border-color: #bfdbfe; background: #eff6ff; }
     .btn-mini.asist:hover { background: #2563eb; color: #fff; border-color: #2563eb; }
-    .est-select { font-size: .72rem; border-radius: 8px; padding: 3px 6px; margin-top: 6px; max-width: 130px; }
     .comp-link { display: inline-flex; align-items: center; gap: 4px; font-size: .72rem; font-weight: 700; color: #1d4ed8; margin-top: 6px; }
+    /* Colores por estado: los mismos del calendario */
+    .cal-leyenda { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 10px; font-size: .8rem; font-weight: 600; color: #475569; }
+    .cal-leyenda .lg { display: inline-flex; align-items: center; gap: 6px; }
+    .cal-leyenda .lg i { width: 14px; height: 14px; border-radius: 4px; border-left: 4px solid; display: inline-block; }
+    .lg.verificar i { background: #fbeecb; border-color: #d97706; }
+    .lg.falta i { background: #e0f2fe; border-color: #0284c7; }
+    .lg.pagada i { background: #d9efe0; border-color: #16a34a; }
+    .lg.fin i { background: #e2e8f0; border-color: #64748b; }
+    .lg.neg i { background: #fbdcdc; border-color: #f87171; }
+    .tbl tr.rv-verificar > td:first-child { box-shadow: inset 4px 0 0 #d97706; }
+    .tbl tr.rv-falta > td:first-child { box-shadow: inset 4px 0 0 #0284c7; }
+    .tbl tr.rv-pagada > td:first-child { box-shadow: inset 4px 0 0 #16a34a; }
+    .tbl tr.rv-fin > td:first-child { box-shadow: inset 4px 0 0 #64748b; }
+    .tbl tr.rv-neg > td:first-child { box-shadow: inset 4px 0 0 #f87171; }
+    @media (max-width: 767px) {
+        .tbl-cards tr.rv-verificar { border-left-color: #d97706; }
+        .tbl-cards tr.rv-falta { border-left-color: #0284c7; }
+        .tbl-cards tr.rv-pagada { border-left-color: #16a34a; }
+        .tbl-cards tr.rv-fin { border-left-color: #64748b; }
+        .tbl-cards tr.rv-neg { border-left-color: #f87171; }
+        .tbl-cards tr > td:first-child { box-shadow: none !important; }
+    }
     .pill.info { background: #e0f2fe; color: #0284c7; }
+    /* Insignia única de estado: mismos colores que el calendario y su leyenda */
+    .pill.cv-verificar { background: #fbeecb; color: #92400e; }
+    .pill.cv-falta { background: #e0f2fe; color: #075985; }
+    .pill.cv-pagada { background: #d9efe0; color: #166534; }
+    .pill.cv-fin { background: #e2e8f0; color: #334155; }
+    .pill.cv-neg { background: #fbdcdc; color: #991b1b; }
+    .rap-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+    .rap-btn { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px; border-radius: 999px; background: #fff; border: 1px solid #dbe3ec; color: #334155; font-size: .88rem; font-weight: 700; text-decoration: none; }
+    .rap-btn:hover { border-color: #1a7a3a; color: #1a7a3a; }
+    .rap-btn.on { background: #1a7a3a; border-color: #1a7a3a; color: #fff; }
+    .rap-btn .n { display: inline-block; min-width: 22px; padding: 1px 7px; border-radius: 10px; background: #eef2f7; color: #334155; font-size: .72rem; text-align: center; }
+    .rap-btn.on .n { background: rgba(255,255,255,.25); color: #fff; }
+    .rap-btn.verif .n { background: #dc2626; color: #fff; }
+    .btn-fila { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px; margin: 2px 4px 2px 0; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; color: #101c33; font-size: .8rem; font-weight: 700; text-decoration: none; cursor: pointer; white-space: nowrap; }
+    .btn-fila:hover { border-color: #1a7a3a; color: #1a7a3a; }
+    .btn-fila.wa { color: #166534; border-color: #86efac; background: #f0fdf4; }
+    .btn-fila.wa:hover { background: #16a34a; color: #fff; border-color: #16a34a; }
+    .btn-fila.asist { color: #1d4ed8; border-color: #bfdbfe; background: #eff6ff; }
+    .btn-fila.asist:hover { background: #2563eb; color: #fff; border-color: #2563eb; }
+    .btn-fila.pago { color: #92400e; border-color: #fcd34d; background: #fffbeb; }
+    .btn-fila.pago:hover { background: #d97706; color: #fff; border-color: #d97706; }
+    @media (max-width: 767px) { .btn-fila { min-height: 44px; flex: 1 1 auto; justify-content: center; } }
     .pill.mut { background: #f1f5f9; color: #64748b; }
 </style>
 
-            <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-4">
+            <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
                 <div>
                     <h1 class="adm-h1">Reservas</h1>
-                    <p class="adm-sub">Gestiona las reservas, reprograma horarios y verifica los comprobantes de pago.</p>
+                    <p class="adm-sub">Agenda y atención de reservas. Los pagos se verifican y se cobran solo en Caja.</p>
                 </div>
                 <div class="d-flex gap-2">
                     <a href="<?= url('/admin/calendario') ?>" class="btn btn-sm btn-outline-dark fw-bold" style="border-radius:9px;padding:9px 16px;">
@@ -78,91 +124,50 @@ $asistCls = static fn(string $a): string => match ($a) {
                 </div>
             </div>
 
-            <!-- Métricas -->
-            <div class="row g-3 mb-4">
-                <div class="col-md-6 col-xl-3">
-                    <div class="kpi">
-                        <span class="kpi-ico b"><i class="bi bi-calendar-check"></i></span>
-                        <div><small class="lbl">Total reservas</small><div class="val"><?= (int)($estadisticas['total_reservas'] ?? 0) ?></div></div>
-                    </div>
-                </div>
-                <div class="col-md-6 col-xl-3">
-                    <div class="kpi">
-                        <span class="kpi-ico g"><i class="bi bi-check-circle"></i></span>
-                        <div><small class="lbl">Confirmadas</small><div class="val"><?= (int)($estadisticas['confirmadas'] ?? 0) ?></div></div>
-                    </div>
-                </div>
-                <div class="col-md-6 col-xl-3">
-                    <div class="kpi">
-                        <span class="kpi-ico y"><i class="bi bi-clock-history"></i></span>
-                        <div><small class="lbl">Pendientes</small><div class="val"><?= (int)($estadisticas['pendientes'] ?? 0) ?></div></div>
-                    </div>
-                </div>
-                <div class="col-md-6 col-xl-3">
-                    <div class="kpi">
-                        <span class="kpi-ico y"><i class="bi bi-credit-card"></i></span>
-                        <div><small class="lbl">Pagos por verificar</small><div class="val"><?= (int)($estadisticas['pagos_en_revision'] ?? 0) ?></div></div>
-                        <div class="foot"><a href="<?= url('/admin/pagos?tab=revision') ?>">Ver →</a></div>
-                    </div>
-                </div>
+            <!-- Filtros rápidos con contador -->
+            <?php $qVista = $busqueda !== '' ? '&q=' . urlencode($busqueda) : ''; ?>
+            <div class="rap-bar" aria-label="Filtros rápidos">
+                <a href="<?= url('/admin/reservas?vista=hoy' . $qVista) ?>" class="rap-btn <?= $vista === 'hoy' ? 'on' : '' ?>">Hoy <span class="n"><?= (int)$conteos['hoy'] ?></span></a>
+                <a href="<?= url('/admin/pagos?tab=revision') ?>" class="rap-btn verif" title="Se verifica en Caja > Por verificar">Por verificar <span class="n"><?= (int)$conteos['verificar'] ?></span></a>
+                <a href="<?= url('/admin/reservas?vista=confirmadas' . $qVista) ?>" class="rap-btn <?= $vista === 'confirmadas' ? 'on' : '' ?>">Confirmadas <span class="n"><?= (int)$conteos['confirmadas'] ?></span></a>
+                <a href="<?= url('/admin/reservas?vista=pendientes' . $qVista) ?>" class="rap-btn <?= $vista === 'pendientes' ? 'on' : '' ?>">Pendientes <span class="n"><?= (int)$conteos['pendientes'] ?></span></a>
+                <a href="<?= url('/admin/reservas?vista=todas' . $qVista) ?>" class="rap-btn <?= $vista === 'todas' ? 'on' : '' ?>">Todas <span class="n"><?= (int)$conteos['todas'] ?></span></a>
             </div>
 
-            <!-- Filtros -->
             <div class="panel-2 mb-4">
-                <form action="<?= url('/admin/reservas') ?>" method="GET" class="f-bar">
-                    <div class="fld" style="flex:1;min-width:180px;">
+                <form action="<?= url('/admin/reservas') ?>" method="GET" class="f-bar mb-3">
+                    <input type="hidden" name="vista" value="<?= htmlspecialchars($vista) ?>">
+                    <?php if ($filtroEstado !== ''): ?><input type="hidden" name="estado" value="<?= htmlspecialchars($filtroEstado) ?>"><?php endif; ?>
+                    <?php if ($filtroPago !== ''): ?><input type="hidden" name="pago" value="<?= htmlspecialchars($filtroPago) ?>"><?php endif; ?>
+                    <?php if ($filtroAsistencia !== ''): ?><input type="hidden" name="asistencia" value="<?= htmlspecialchars($filtroAsistencia) ?>"><?php endif; ?>
+                    <div class="fld" style="flex:1;min-width:200px;">
                         <label for="fq">Buscar</label>
-                        <input type="text" class="form-control" id="fq" name="q" value="<?= htmlspecialchars($busqueda) ?>" placeholder="Código, cliente o cancha...">
-                    </div>
-                    <div class="fld">
-                        <label for="festado">Estado</label>
-                        <select class="form-select" id="festado" name="estado">
-                            <option value="">Todos</option>
-                            <?php foreach (['pendiente' => 'Pendiente', 'confirmada' => 'Confirmada', 'finalizada' => 'Completada', 'cancelada' => 'Cancelada'] as $v => $l): ?>
-                                <option value="<?= $v ?>" <?= $filtroEstado === $v ? 'selected' : '' ?>><?= $l ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="fld">
-                        <label for="fasist">Asistencia</label>
-                        <select class="form-select" id="fasist" name="asistencia">
-                            <option value="">Todas</option>
-                            <option value="sin_registrar" <?= $filtroAsistencia === 'sin_registrar' ? 'selected' : '' ?>>Sin registrar</option>
-                            <option value="presente" <?= $filtroAsistencia === 'presente' ? 'selected' : '' ?>>Presente</option>
-                            <option value="tardanza" <?= $filtroAsistencia === 'tardanza' ? 'selected' : '' ?>>Tardanza</option>
-                            <option value="retraso_confirmado" <?= $filtroAsistencia === 'retraso_confirmado' ? 'selected' : '' ?>>Retraso avisado</option>
-                            <option value="no_asistio" <?= $filtroAsistencia === 'no_asistio' ? 'selected' : '' ?>>No asistió</option>
-                        </select>
-                    </div>
-                    <div class="fld">
-                        <label for="fpago">Pago</label>
-                        <select class="form-select" id="fpago" name="pago">
-                            <option value="">Todos</option>
-                            <?php foreach (['pendiente' => 'Pendiente', 'en_revision' => 'Por verificar', 'verificado' => 'Pagado', 'rechazado' => 'Rechazado'] as $v => $l): ?>
-                                <option value="<?= $v ?>" <?= $filtroPago === $v ? 'selected' : '' ?>><?= $l ?></option>
-                            <?php endforeach; ?>
-                        </select>
+                        <input type="text" class="form-control" id="fq" name="q" value="<?= htmlspecialchars($busqueda) ?>" placeholder="Código, cliente, teléfono o cancha...">
                     </div>
                     <button type="submit" class="btn btn-sm fw-bold" style="background:#101c33;color:#fff;border-radius:9px;padding:9px 18px;">
-                        <i class="bi bi-funnel me-1"></i> Filtrar
+                        <i class="bi bi-search me-1"></i> Buscar
                     </button>
                     <a href="<?= url('/admin/reservas') ?>" class="btn btn-sm btn-outline-secondary" style="border-radius:9px;padding:9px 16px;">Limpiar</a>
                 </form>
 
-                <div class="d-flex align-items-center justify-content-between my-2 ">
-                    <h3>Listado de reservas (<?= count($reservas) ?>)</h3>
+                <div class="cal-leyenda" aria-label="Colores de las reservas">
+                    <span class="lg verificar"><i></i> Por verificar</span>
+                    <span class="lg falta"><i></i> Confirmada · falta pagar</span>
+                    <span class="lg pagada"><i></i> Pagada</span>
+                    <span class="lg fin"><i></i> Finalizada</span>
+                    <span class="lg neg"><i></i> Cancelada / No asistió</span>
                 </div>
                 <div class="table-responsive">
-                <table class="tbl">
+                <table class="tbl tbl-cards">
                     <thead>
-                        <tr><th>#</th><th>Cliente</th><th>Cancha</th><th>Fecha y hora</th><th>Total</th><th>Estado</th><th>Asistencia</th><th>Pago</th><th>Acciones</th></tr>
+                        <tr><th>#</th><th>Cliente</th><th>Cancha y horario</th><th>Estado</th><th>Saldo</th><th>Acciones</th></tr>
                     </thead>
                     <tbody>
                         <?php if (empty($reservas)): ?>
-                            <tr><td colspan="9" class="text-center text-muted py-4">No se encontraron reservas con esos filtros.</td></tr>
+                            <tr><td colspan="6" class="text-center text-muted py-4">No se encontraron reservas con esos filtros.</td></tr>
                         <?php else: ?>
                         <?php
-                        // Agrupar reservas
+                        // Agrupar reservas (un evento de varias canchas es una sola fila)
                         $grupos = [];
                         foreach ($reservas as $r) {
                             $k = !empty($r['evento_grupo']) ? 'evt_'.$r['evento_grupo'] : 'res_'.$r['id'];
@@ -175,6 +180,8 @@ $asistCls = static fn(string $a): string => match ($a) {
                                     'usuario_email' => $r['usuario_email'],
                                     'contacto_telefono' => !empty($r['contacto_telefono']) ? $r['contacto_telefono'] : ($r['usuario_telefono'] ?? ''),
                                     'origen' => $r['origen'] ?? 'web',
+                                    'metodo_pago' => (string)($r['metodo_pago'] ?? ''),
+                                    'es_demo' => (int)($r['es_demo'] ?? 0),
                                     'fecha' => $r['fecha'],
                                     'hora_inicio' => $r['hora_inicio'],
                                     'hora_fin' => $r['hora_fin'],
@@ -201,128 +208,75 @@ $asistCls = static fn(string $a): string => match ($a) {
                         <?php foreach ($grupos as $r): ?>
                             <?php
                                 $pe = (string)($r['pago_estado'] ?? 'pendiente');
-                                $comp = (string)($r['comprobante_ruta'] ?? '');
                                 $mF = ['', 'ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
                                 $tsF = strtotime($r['fecha']);
                                 $fCorta = date('d', $tsF) . ' ' . $mF[(int)date('n', $tsF)] . ' ' . date('Y', $tsF);
                                 $totalG = round((float)$r['total_pago'], 2);
                                 $pagadoG = round((float)$r['total_pagado'], 2);
                                 $saldo = max(0.0, round($totalG - $pagadoG, 2));
-                                $orig = (string)($r['origen'] ?? 'web');
                                 $canchaNombreDisplay = !empty($r['canchas']) ? $r['canchas'][0]['nombre'] : 'Cancha';
                                 $waLink = generarEnlaceWhatsApp($r);
+                                $catV = categoriaVisualReserva($r, $pagadoG); // misma insignia y color que el calendario
+                                $minDur = (int)round((strtotime('2000-01-01 ' . $r['hora_fin']) - strtotime('2000-01-01 ' . $r['hora_inicio'])) / 60);
+                                if ($minDur <= 0) { $minDur += 1440; }
+                                $porVerificar = pagoEsPorVerificar($r);
+                                $esHoyFila = ($r['fecha'] === $hoyVista);
                             ?>
-                            <tr>
-                                <td class="fw-semibold">
+                            <tr class="rv-<?= $catV['clave'] ?>">
+                                <td data-label="Reserva" class="fw-semibold">
                                     #<?= $r['id'] ?>
                                     <?php if ($r['is_grupo']): ?><br><span class="badge bg-secondary" style="font-size:0.6rem;">Evento</span><?php endif; ?>
-                                    <div class="mt-1">
-                                        <?php if ($orig === 'whatsapp'): ?>
-                                            <span class="badge" style="background:#dcfce7;color:#15803d;font-size:0.62rem;"><i class="bi bi-whatsapp"></i> WhatsApp</span>
-                                        <?php elseif ($orig === 'llamada'): ?>
-                                            <span class="badge" style="background:#fef9c3;color:#854d0e;font-size:0.62rem;"><i class="bi bi-telephone"></i> Llamada</span>
-                                        <?php elseif ($orig === 'presencial'): ?>
-                                            <span class="badge" style="background:#ecfdf5;color:#047857;font-size:0.62rem;"><i class="bi bi-person-badge"></i> Presencial</span>
-                                        <?php else: ?>
-                                            <span class="badge" style="background:#eff6ff;color:#1d4ed8;font-size:0.62rem;"><i class="bi bi-globe"></i> Web</span>
-                                        <?php endif; ?>
-                                    </div>
                                 </td>
-                                <td>
+                                <td data-label="Cliente">
                                     <div class="fw-semibold"><?= htmlspecialchars($r['usuario_nombre']) ?></div>
                                     <?php if (!empty($r['contacto_telefono'])): ?>
-                                        <div style="font-size:0.75rem; color:#166534;"><i class="bi bi-telephone me-1"></i><?= htmlspecialchars($r['contacto_telefono']) ?></div>
+                                        <div style="font-size:0.78rem; color:#166534;"><i class="bi bi-telephone me-1"></i><?= htmlspecialchars($r['contacto_telefono']) ?></div>
                                     <?php endif; ?>
-                                    <small class="text-muted"><?= htmlspecialchars($r['usuario_email']) ?></small>
                                 </td>
-                                <td>
+                                <td data-label="Cancha y horario">
                                     <?php if ($r['is_grupo']): ?>
-                                        <div style="font-size:0.8rem; font-weight:600;"><?= count($r['canchas']) ?> canchas:</div>
+                                        <div style="font-size:0.82rem; font-weight:700;"><?= count($r['canchas']) ?> canchas</div>
                                         <?php foreach ($r['canchas'] as $c): ?>
-                                            <div style="font-size:0.75rem; color:#5b6b82;">- <?= htmlspecialchars($c['nombre']) ?></div>
+                                            <div style="font-size:0.74rem; color:#5b6b82;">- <?= htmlspecialchars($c['nombre']) ?></div>
                                         <?php endforeach; ?>
                                     <?php else: ?>
-                                        <?= htmlspecialchars($r['canchas'][0]['nombre'] ?? '') ?>
+                                        <div class="fw-semibold"><?= htmlspecialchars($r['canchas'][0]['nombre'] ?? '') ?></div>
                                     <?php endif; ?>
+                                    <small class="text-muted"><?= $fCorta ?> · <?= date('H:i', strtotime($r['hora_inicio'])) ?> - <?= date('H:i', strtotime($r['hora_fin'])) ?> (<?= formatoDuracion($minDur) ?>)</small>
                                 </td>
-                                <td class="fh"><?= $fCorta ?><small><?= date('H:i', strtotime($r['hora_inicio'])) ?> - <?= date('H:i', strtotime($r['hora_fin'])) ?></small></td>
-                                <td>
-                                    <div class="fw-bold"><?= formatPrice($totalG) ?></div>
-                                    <div style="font-size:0.7rem; color:#166534;">Cobrado: <?= formatPrice($pagadoG) ?></div>
-                                    <?php if ($saldo > 0 && $r['estado'] !== 'cancelada'): ?>
-                                        <div style="font-size:0.7rem; color:#dc2626; font-weight:700;">Saldo: <?= formatPrice($saldo) ?></div>
-                                    <?php elseif ($r['estado'] === 'cancelada'): ?>
-                                        <div style="font-size:0.7rem; color:#64748b;">Cancelada</div>
+                                <td data-label="Estado">
+                                    <span class="pill cv-<?= $catV['clave'] ?>" title="Reserva y pago en una sola etiqueta"><?= htmlspecialchars($catV['texto']) ?></span>
+                                </td>
+                                <td data-label="Saldo">
+                                    <?php if ($r['estado'] === 'cancelada'): ?>
+                                        <span class="text-muted">—</span>
+                                    <?php elseif ($saldo > 0): ?>
+                                        <strong style="color:#dc2626;"><?= formatPrice($saldo) ?></strong>
                                     <?php else: ?>
-                                        <div style="font-size:0.7rem; color:#166534; font-weight:700;">Pagado 100%</div>
+                                        <strong style="color:#166534;">Pagado</strong>
                                     <?php endif; ?>
                                 </td>
-                                <td>
-                                    <span class="pill <?= $estCls($r['estado']) ?>"><?= $estLbl($r['estado']) ?></span>
-                                    <form action="<?= url('/reserva/estado/' . $r['id']) ?>" method="POST" <?= $r['is_grupo'] ? 'class="evento-form"' : '' ?>>
-                                        <?= csrf_field() ?>
-                                        <?php if ($r['is_grupo']): ?><input type="hidden" name="evento_grupo" value="<?= htmlspecialchars($r['evento_grupo']) ?>"><?php endif; ?>
-                                        <select name="estado" class="form-select est-select" onchange="this.form.submit()" title="Cambiar estado">
-                                            <?php foreach (['pendiente' => 'Pendiente', 'confirmada' => 'Confirmada', 'finalizada' => 'Completada', 'cancelada' => 'Cancelada'] as $v => $l): ?>
-                                                <option value="<?= $v ?>" <?= $r['estado'] === $v ? 'selected' : '' ?>><?= $l ?></option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </form>
-                                </td>
-                                <td>
-                                    <span class="pill <?= $asistCls($r['asistencia_estado']) ?>"><?= $asistLbl($r['asistencia_estado']) ?></span>
-                                    <?php if (!empty($r['asistencia_hora'])): ?>
-                                        <div class="small text-muted" style="font-size:0.68rem; margin-top:2px;">
-                                            <i class="bi bi-clock me-1"></i><?= substr((string)$r['asistencia_hora'], 0, 5) ?>
-                                        </div>
-                                    <?php endif; ?>
-                                    <?php if (!empty($r['asistencia_notas'])): ?>
-                                        <div class="small text-muted text-truncate" style="max-width:130px; font-size:0.65rem;" title="<?= htmlspecialchars((string)$r['asistencia_notas']) ?>">
-                                            <i class="bi bi-chat-text me-1"></i><?= htmlspecialchars((string)$r['asistencia_notas']) ?>
-                                        </div>
-                                    <?php endif; ?>
-                                </td>
-                                <td>
-                                    <span class="pill <?= $pagoCls($pe) ?>"><?= $pagoLbl($pe) ?></span>
-                                    <?php if ($comp): ?>
-                                        <br><a href="<?= url('/' . ltrim($comp, '/')) ?>" target="_blank" rel="noopener" class="comp-link"><i class="bi bi-paperclip"></i> Comprobante</a>
-                                    <?php endif; ?>
-                                </td>
-                                <td style="white-space:nowrap;">
+                                <td class="td-acc" data-label="Acciones">
+                                    <a href="<?= url('/mis-reservas/' . $r['id']) ?>" class="btn-fila" title="Ver detalle"><i class="bi bi-eye"></i> Ver detalle</a>
                                     <?php if ($waLink !== '#'): ?>
-                                        <a href="<?= $waLink ?>" target="_blank" rel="noopener" class="btn-mini wa" title="Contactar por WhatsApp (+51)"><i class="bi bi-whatsapp"></i></a>
+                                        <a href="<?= $waLink ?>" target="_blank" rel="noopener" class="btn-fila wa" title="Contactar por WhatsApp (+51)"><i class="bi bi-whatsapp"></i> WhatsApp</a>
                                     <?php endif; ?>
-                                    <button type="button" class="btn-mini asist" onclick="abrirModalAsistencia(<?= htmlspecialchars(json_encode([
-                                        'id' => $r['id'],
-                                        'cliente' => $r['usuario_nombre'],
-                                        'telefono' => $r['contacto_telefono'],
-                                        'cancha' => $canchaNombreDisplay,
-                                        'fecha' => $r['fecha'],
-                                        'hora_inicio' => substr((string)$r['hora_inicio'], 0, 5),
-                                        'hora_fin' => substr((string)$r['hora_fin'], 0, 5),
-                                        'asistencia_estado' => $r['asistencia_estado'] ?? 'sin_registrar',
-                                        'asistencia_hora' => $r['asistencia_hora'] ?? '',
-                                        'asistencia_notas' => $r['asistencia_notas'] ?? '',
-                                        'estado' => $r['estado']
-                                    ]), ENT_QUOTES, 'UTF-8') ?>)" title="Registrar asistencia y puntualidad"><i class="bi bi-person-check"></i></button>
-                                    <a href="<?= url('/mis-reservas/' . $r['id']) ?>" class="btn-mini" title="Ver detalle"><i class="bi bi-eye"></i></a>
-                                    <a href="<?= url('/admin/reserva/editar/' . $r['id']) ?>" class="btn-mini" title="Editar / Reprogramar"><i class="bi bi-pencil"></i></a>
-                                    <?php if ($pe === 'en_revision'): ?>
-                                        <form action="<?= url('/reserva/pago/' . $r['id']) ?>" method="POST" class="d-inline">
-                                            <?= csrf_field() ?>
-                                            <?php if ($r['is_grupo']): ?><input type="hidden" name="evento_grupo" value="<?= htmlspecialchars($r['evento_grupo']) ?>"><?php endif; ?>
-                                            <input type="hidden" name="pago_estado" value="verificado">
-                                            <button type="submit" class="btn-mini ok" title="Verificar pago"><i class="bi bi-check-lg"></i></button>
-                                        </form>
-                                        <form action="<?= url('/reserva/pago/' . $r['id']) ?>" method="POST" class="d-inline">
-                                            <?= csrf_field() ?>
-                                            <?php if ($r['is_grupo']): ?><input type="hidden" name="evento_grupo" value="<?= htmlspecialchars($r['evento_grupo']) ?>"><?php endif; ?>
-                                            <input type="hidden" name="pago_estado" value="rechazado">
-                                            <button type="submit" class="btn-mini bad" title="Rechazar pago"><i class="bi bi-x-lg"></i></button>
-                                        </form>
-                                    <?php endif; ?>
-                                    <?php if ($saldo > 0 && $r['estado'] !== 'cancelada'): ?>
-                                        <a href="<?= url('/admin/pagos?tab=pendientes&q=' . $r['id']) ?>" class="btn-mini ok" title="Cobrar saldo pendiente en Caja"><i class="bi bi-cash"></i></a>
+                                    <?php if ($porVerificar): ?>
+                                        <a href="<?= url('/admin/pagos?tab=revision&q=' . $r['id'] . (!empty($r['es_demo']) ? '&demo=1' : '')) ?>" class="btn-fila pago" title="El pago se verifica en Caja > Por verificar"><i class="bi bi-receipt-cutoff"></i> Revisar pago</a>
+                                    <?php elseif ($r['estado'] === 'confirmada' && $esHoyFila): ?>
+                                        <button type="button" class="btn-fila asist" onclick="abrirModalAsistencia(<?= htmlspecialchars(json_encode([
+                                            'id' => $r['id'],
+                                            'cliente' => $r['usuario_nombre'],
+                                            'telefono' => $r['contacto_telefono'],
+                                            'cancha' => $canchaNombreDisplay,
+                                            'fecha' => $r['fecha'],
+                                            'hora_inicio' => substr((string)$r['hora_inicio'], 0, 5),
+                                            'hora_fin' => substr((string)$r['hora_fin'], 0, 5),
+                                            'asistencia_estado' => $r['asistencia_estado'] ?? 'sin_registrar',
+                                            'asistencia_hora' => $r['asistencia_hora'] ?? '',
+                                            'asistencia_notas' => $r['asistencia_notas'] ?? '',
+                                            'estado' => $r['estado']
+                                        ]), ENT_QUOTES, 'UTF-8') ?>)" title="Registrar asistencia y puntualidad"><i class="bi bi-person-check"></i> Asistencia</button>
                                     <?php endif; ?>
                                 </td>
                             </tr>
@@ -376,7 +330,7 @@ $asistCls = static fn(string $a): string => match ($a) {
                     <div class="alert alert-warning py-2 px-3 small mb-3 d-flex align-items-start gap-2" style="border-radius:9px; font-size:0.78rem;">
                         <i class="bi bi-shield-exclamation text-warning fs-6"></i>
                         <div>
-                            <strong>Regla de Puntualidad:</strong> 10 minutos de tolerancia. El alquiler inicia a la hora programada y culmina estrictamente a su hora pactada. La tardanza no extiende el horario.
+                            <strong>Regla de Puntualidad:</strong> <?= toleranciaMinutos() ?> minutos de tolerancia. El alquiler inicia a la hora programada y culmina estrictamente a su hora pactada. La tardanza no extiende el horario.
                         </div>
                     </div>
 
@@ -385,7 +339,7 @@ $asistCls = static fn(string $a): string => match ($a) {
                         <label class="form-label small fw-bold text-dark mb-1">Estado de Asistencia <span class="text-danger">*</span></label>
                         <select name="asistencia_estado" id="modalSelectEstado" class="form-select form-select-sm" style="border-radius:8px;" required onchange="toggleOpcionesAsistencia(this.value)">
                             <option value="presente">Llegó puntual / dentro de tolerancia (Presente)</option>
-                            <option value="tardanza">Llegó tarde (más de 10 min de retraso)</option>
+                            <option value="tardanza">Llegó tarde (más de <?= toleranciaMinutos() ?> min de retraso)</option>
                             <option value="retraso_confirmado">Cliente avisó retraso (En camino - mantener cancha)</option>
                             <option value="no_asistio">No asistió (Inasistencia)</option>
                             <option value="sin_registrar">Sin registrar (Pendiente de llegada)</option>
@@ -454,7 +408,7 @@ function abrirModalAsistencia(data) {
         btnTel.href = 'tel:+51' + telLimpio;
         btnTel.style.display = 'inline-flex';
         const waNum = telLimpio.length === 9 ? '51' + telLimpio : telLimpio;
-        const msg = encodeURIComponent('Hola ' + data.cliente + ', te saludamos de TOP GOL respecto a tu reserva #' + data.id + ' de ' + data.hora_inicio + ' a ' + data.hora_fin + '. Recuerda que contamos con 10 min de tolerancia.');
+        const msg = encodeURIComponent('Hola ' + data.cliente + ', te saludamos de TOP GOL respecto a tu reserva #' + data.id + ' de ' + data.hora_inicio + ' a ' + data.hora_fin + '. Recuerda que contamos con <?= toleranciaMinutos() ?> min de tolerancia.');
         btnWa.href = 'https://wa.me/' + waNum + '?text=' + msg;
         btnWa.style.display = 'inline-flex';
     } else {
@@ -463,7 +417,7 @@ function abrirModalAsistencia(data) {
     }
 
     // Botón reprogramar
-    document.getElementById('modalBtnReprog').href = '<?= url("/admin/reserva/editar/") ?>' + data.id + '#seccion-reprogramar';
+    document.getElementById('modalBtnReprog').href = '<?= url("/mis-reservas/") ?>' + data.id + '#panel-asistencia';
 
     // Campos de formulario
     const sel = document.getElementById('modalSelectEstado');

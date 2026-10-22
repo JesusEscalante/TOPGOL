@@ -9,15 +9,23 @@ if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $fechaPre)) {
     $fechaPre = date('Y-m-d');
 }
 
+// Duración que llega por URL (paso 1 la manda en minutos). Se usa en horas en este formulario.
+$durRawPre = (float)($_GET['duracion'] ?? 0);
+$durMinPre = $durRawPre > 8 ? (int)round($durRawPre) : ($durRawPre > 0 ? (int)round($durRawPre * 60) : 60);
+$durHorasPre = $durMinPre / 60;
+$celularPre = (string)preg_replace('/^\+51\s*/', '', (string)($_GET['celular'] ?? ''));
+$origenPre = (string)($_GET['origen'] ?? 'presencial');
+
 // Desde 1 hora más de la actual (ni pasadas ni la actual) si la fecha es hoy (hora de Lima)
 $hoyStr = date('Y-m-d');
 $esHoy = ($fechaPre === $hoyStr);
-$horaMinHoy = max(7, (int)date('H') + 1);
+// Hora mínima de inicio hoy (Lima): el administrador puede registrar el bloque de media hora en curso
+$minHoyAdmin = horaMinimaReserva($hoyStr, true);
 
  // Cancha inicial para el resumen
 $canchaIni = $canchaSeleccionada ?? ($canchas[0] ?? null);
 $precioHoraIni = (float)($canchaIni['precio_hora'] ?? 60);
-$duracionIni = 1;
+$duracionIni = $durHorasPre;
 $totalIni = $precioHoraIni * $duracionIni;
 $esAdminView = function_exists('isAdmin') && isAdmin();
 $adelantoIni = $esAdminView ? $totalIni : 20;
@@ -26,7 +34,7 @@ $metodoIni = $esAdminView ? 'efectivo' : 'yape';
 
 $tipoLabels = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11' => 'Fútbol 11'];
 $tipoIni = $tipoLabels[$canchaIni['tipo'] ?? ''] ?? 'Fútbol 5';
-$capacidadIni = (int)($canchaIni['capacidad'] ?? 8);
+$capacidadIni = (int)($canchaIni['capacidad'] ?? 0); // de la base de datos (canchas.capacidad)
 
 // Fecha formateada: Sáb, 26 de abril de 2025
 $dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -75,7 +83,7 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
                 <input type="hidden" name="cancha_id" id="cancha_id" value="<?= htmlspecialchars($_GET['cancha_id'] ?? $idSeleccionado) ?>">
                 <input type="hidden" name="fecha" id="fecha" value="<?= htmlspecialchars($_GET['fecha'] ?? $fechaPre) ?>">
                 <input type="hidden" name="hora_inicio" id="hora_inicio" value="<?= htmlspecialchars($_GET['horario'] ?? $horaPre) ?>">
-                <input type="hidden" name="duracion_horas" id="duracion_horas" value="<?= htmlspecialchars($_GET['duracion'] ?? $duracionIni) ?>">
+                <input type="hidden" name="duracion_horas" id="duracion_horas" value="<?= htmlspecialchars((string)$durHorasPre) ?>">
                 <input type="hidden" name="contacto_telefono" id="contacto_telefono" value="<?= htmlspecialchars($_GET['celular'] ?? '') ?>">
                 <input type="hidden" name="observaciones" value="<?= htmlspecialchars($_GET['observaciones'] ?? '') ?>">
                 <input type="hidden" name="cliente_nombre" value="<?= htmlspecialchars($_GET['nombre_cliente'] ?? '') ?>">
@@ -90,7 +98,7 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
                         <div class="col-md-7">
                             <label for="cliente_nombre" class="form-label fw-semibold small">Nombre del cliente <span class="text-danger">*</span></label>
                             <div class="cs-wrap" style="position:relative;">
-                                <input type="text" class="form-control" id="cliente_nombre" name="cliente_nombre" placeholder="Ej: Juan Pérez" autocomplete="off" required>
+                                <input type="text" class="form-control" id="cliente_nombre" name="cliente_nombre" placeholder="Ej: Juan Pérez" autocomplete="off" value="<?= htmlspecialchars((string)($_GET['nombre_cliente'] ?? '')) ?>" required>
                                 <div id="clienteDropdown" class="cs-dropdown d-none"></div>
                             </div>
                             <input type="hidden" id="cliente_id" name="cliente_id" value="0">
@@ -98,9 +106,9 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
                         <div class="col-md-5">
                             <label for="origen" class="form-label fw-semibold small">Canal / Origen <span class="text-danger">*</span></label>
                             <select class="form-select" id="origen" name="origen" required>
-                                <option value="presencial" selected>Presencial (Mostrador)</option>
-                                <option value="llamada">Llamada telefónica</option>
-                                <option value="whatsapp">WhatsApp</option>
+                                <option value="presencial" <?= $origenPre === 'presencial' || !in_array($origenPre, ['llamada', 'whatsapp'], true) ? 'selected' : '' ?>>Presencial (Mostrador)</option>
+                                <option value="llamada" <?= $origenPre === 'llamada' ? 'selected' : '' ?>>Llamada telefónica</option>
+                                <option value="whatsapp" <?= $origenPre === 'whatsapp' ? 'selected' : '' ?>>WhatsApp</option>
                             </select>
                         </div>
                     </div>
@@ -133,21 +141,14 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
                                 <option value="" disabled <?= $horaPre === '' ? 'selected' : '' ?>>--:--</option>
                                 <?php
                                 for ($h = 7; $h <= 23; $h++):
-                                    foreach (['00','10','20','30','40','50'] as $mm):
-                                        if ($h == 23 && $mm == '30') {
-                                            // 23:30 es válido (termina 00:00 con 30m)
-                                        }
+                                    foreach (reservaMinutosInicio() as $mm):
                                         $horaStr = sprintf('%02d:%s', $h, $mm);
-                                        if ($esHoy) {
-                                            $tsSlot = strtotime($horaStr);
-                                            $tsMin = strtotime(sprintf('%02d:00', $horaMinHoy));
-                                            if ($tsSlot < $tsMin) continue;
-                                        }
+                                        $pasada = ($esHoy && $horaStr < $minHoyAdmin);
                                 ?>
-                                    <option value="<?= $horaStr ?>" <?= $horaPre === $horaStr ? 'selected' : '' ?>><?= date('g:i A', strtotime($horaStr)) ?></option>
+                                    <option value="<?= $horaStr ?>" <?= $pasada ? 'disabled hidden' : '' ?> <?= $horaPre === $horaStr && !$pasada ? 'selected' : '' ?>><?= date('g:i A', strtotime($horaStr)) ?></option>
                                 <?php endforeach; endfor; ?>
                             </select>
-                            <small class="text-muted <?= ($esHoy && $horaMinHoy > 23) ? '' : 'd-none' ?>" id="sinHorariosHoy">Por hoy ya no quedan horarios, elige otra fecha.</small>
+                            <small class="text-muted <?= ($esHoy && $minHoyAdmin === '24:00') ? '' : 'd-none' ?>" id="sinHorariosHoy">Por hoy ya no quedan horarios, elige otra fecha.</small>
                         </div>
                         <div class="col-6 col-md-3">
                             <label for="duracion_horas" class="form-label fw-semibold small">Duración <span class="text-danger">*</span></label>
@@ -155,12 +156,7 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
                                 <?php
                                 $durOpciones = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6];
                                 foreach ($durOpciones as $d):
-                                    $lbl = $d == 0.5 ? '30 minutos' : ($d == 1 ? '1 hora' : $d . ' horas');
-                                    if (fmod($d, 1) == 0.5) {
-                                        $h = (int)floor($d);
-                                        $lbl = $h . 'h 30m';
-                                        if ($d == 0.5) $lbl = '30 minutos';
-                                    }
+                                    $lbl = formatoDuracionHoras((float)$d);
                                 ?>
                                     <option value="<?= $d ?>" <?= $d == $duracionIni ? 'selected' : '' ?>><?= $lbl ?></option>
                                 <?php endforeach; ?>
@@ -170,13 +166,13 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
                             <label for="contacto_telefono" class="form-label fw-semibold small">Número de contacto (WhatsApp) <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <span class="input-group-text" style="background:#f8fafc; font-weight:700; color:#334155; border-color:#e2e8f0;">+51</span>
-                                <input type="tel" class="form-control" id="contacto_telefono" name="contacto_telefono" placeholder="999 999 999" value="<?= $esAdminView ? '' : htmlspecialchars(preg_replace('/^\\+51\\s*/', '', $_SESSION['usuario_telefono'] ?? '')) ?>" required>
+                                <input type="tel" class="form-control" id="contacto_telefono" name="contacto_telefono" placeholder="999 999 999" value="<?= $esAdminView ? htmlspecialchars($celularPre) : htmlspecialchars(preg_replace('/^\\+51\\s*/', '', $_SESSION['usuario_telefono'] ?? '')) ?>" required>
                             </div>
                             <div class="invalid-feedback">Ingresa tu número de celular (WhatsApp).</div>
                         </div>
                         <div class="col-md-12">
                             <label for="observaciones" class="form-label fw-semibold small">Observaciones (opcional)</label>
-                            <input type="text" class="form-control" id="observaciones" name="observaciones" placeholder="Ej: Necesitamos chalecos...">
+                            <input type="text" class="form-control" id="observaciones" name="observaciones" placeholder="Ej: Necesitamos chalecos..." value="<?= htmlspecialchars((string)($_GET['observaciones'] ?? '')) ?>">
                         </div>
                     </div>
                 </div>
@@ -215,13 +211,13 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
                         <?php if ($esAdminView): ?>
                         <div class="col-lg-4 col-md-4 col-sm-12">
                             <button type="button" class="metodo-btn active" id="btnEfectivo" onclick="elegirMetodo('efectivo')">
-                                <span class="bcp-logo" style="background:#1a7a3a;">S/</span>
+                                <span class="logo-metodo" style="background:#1a7a3a;">S/</span>
                                 <span>Efectivo</span>
                             </button>
                         </div>
                         <div class="col-lg-4 col-md-4 col-sm-12">
                             <button type="button" class="metodo-btn" id="btnNiubiz" onclick="elegirMetodo('niubiz')">
-                                <span class="bcp-logo" style="background:#005bb5;">POS</span>
+                                <span class="logo-metodo" style="background:#005bb5;">POS</span>
                                 <span>Niubiz (POS)</span>
                             </button>
                         </div>
@@ -271,25 +267,7 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
                     <!-- Panel Yape -->
                     <div class="pago-panel <?= $esAdminView ? 'd-none' : '' ?>" id="panelYape">
                         <div class="row g-3">
-                            <div class="col-md-5 text-center">
-                                <div class="qr-title">Escanea el código QR con Yape</div>
-                                <div class="qr-wrap">
-                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=YAPE-TOPGOL-TACNA-987654321-20" alt="QR Yape Top Gol" width="180" height="180">
-                                    <span class="qr-logo">yape</span>
-                                </div>
-                            </div>
-                            <div class="col-md-7">
-                                <div class="pago-numero-box">
-                                    <div class="fw-semibold small mb-2">También puedes yapear al número:</div>
-                                    <div class="d-flex align-items-center gap-2 flex-wrap">
-                                        <span class="tel-ico"><i class="bi bi-telephone-fill"></i></span>
-                                        <strong class="tel-num">987 654 321</strong>
-                                        <button type="button" class="btn-copiar" onclick="copiarNumero('987654321', this)">
-                                            <i class="bi bi-copy"></i> Copiar
-                                        </button>
-                                    </div>
-                                    <div class="small mt-2">Titular: <strong>Top Gol Tacna S.A.C.</strong></div>
-                                </div>
+                            <?php ob_start(); ?>
                                 <div class="pago-importante">
                                     <div class="fw-bold mb-1"><span class="info-ico"><i class="bi bi-info-lg"></i></span> Importante</div>
                                     <ul class="mb-0">
@@ -298,15 +276,20 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
                                         <li>El encargado verificará el comprobante para confirmar tu reserva.</li>
                                     </ul>
                                 </div>
-                            </div>
+                            <?php $yapeImportanteHtml = ob_get_clean(); ?>
+                            <?php include __DIR__ . DIRECTORY_SEPARATOR . '_yape_datos.php'; ?>
                         </div>
                     </div>
                 </div>
 
+                <?php if (!$esAdminView): ?>
+                <?php require __DIR__ . '/_tolerancia.php'; ?>
+                <?php endif; ?>
+
                 <!-- Sección 2 -->
                 <div class="pago-card mb-3 <?= $esAdminView ? 'd-none' : '' ?>" id="seccionComprobante" style="<?= $esAdminView ? 'display:none;' : '' ?>">
                     <h2 class="pago-h2"><span class="pago-num">2.</span> Sube tu comprobante de pago <?= $esAdminView ? '<small class="text-muted" id="compOpcional">(no requerido para usuario administrador)</small>' : '<span class="text-danger">*</span>' ?></h2>
-                    <p class="pago-text" id="compTexto">Adjunta una imagen o captura de tu comprobante de pago <strong><?= $esAdminView ? '(obligatorio solo para Yape/BCP)' : '(obligatorio)' ?></strong> (formato JPG, PNG o PDF. Máx. 5MB).</p>
+                    <p class="pago-text" id="compTexto">Adjunta una imagen o captura de tu comprobante de pago <strong><?= $esAdminView ? '(obligatorio solo para Yape)' : '(obligatorio)' ?></strong> (formato JPG, PNG o PDF. Máx. 5MB).</p>
 
                     <label class="dropzone" id="dropzone" for="comprobante">
                         <input type="file" id="comprobante" name="comprobante" accept=".jpg,.jpeg,.png,.pdf" hidden>
@@ -321,7 +304,7 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
 
                 <div class="d-flex gap-2 mt-2">
                     <?php if (!$esAdminView): ?>
-                    <a href="<?= url('/reserva/formulario/' . $idSeleccionado) ?>?fecha=<?= urlencode($fechaPre) ?>&horario=<?= urlencode($horaPre) ?>&duracion=<?= urlencode($_GET['duracion'] ?? (string)$duracionIni) ?>&celular=<?= urlencode($_GET['celular'] ?? '') ?>&observaciones=<?= urlencode($_GET['observaciones'] ?? '') ?>&nombre_cliente=<?= urlencode($_GET['nombre_cliente'] ?? '') ?>" class="btn btn-outline-secondary p-3 fw-bold flex-grow-1" style="border-radius:10px; width:50%;">
+                    <a href="<?= url('/reserva/formulario/' . $idSeleccionado) ?>?fecha=<?= urlencode($fechaPre) ?>&horario=<?= urlencode($horaPre) ?>&duracion=<?= urlencode((string)$durMinPre) ?>&celular=<?= urlencode($_GET['celular'] ?? '') ?>&observaciones=<?= urlencode($_GET['observaciones'] ?? '') ?>&nombre_cliente=<?= urlencode($_GET['nombre_cliente'] ?? '') ?>" class="btn btn-outline-secondary p-3 fw-bold flex-grow-1" style="border-radius:10px; width:50%;">
                         <i class="bi bi-arrow-left me-2"></i> Volver a editar reserva
                     </a>
                     <?php endif; ?>
@@ -352,11 +335,11 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
                     </li>
                     <li>
                         <span class="rl-ico"><i class="bi bi-clock"></i></span>
-                        <span><small>Horario</small><strong id="resHorario"><?= htmlspecialchars($horaIniStr) ?> - <?= htmlspecialchars($horaFinStr) ?> (<?= $duracionIni ?> hora)</strong></span>
+                        <span><small>Horario</small><strong id="resHorario"><?= htmlspecialchars($horaIniStr) ?> - <?= htmlspecialchars($horaFinStr) ?> (<?= htmlspecialchars(formatoDuracionHoras((float)$duracionIni)) ?>)</strong></span>
                     </li>
                     <li>
                         <span class="rl-ico"><i class="bi bi-people-fill"></i></span>
-                        <span><small>Número de personas</small><strong id="resPersonas">Hasta <?= $capacidadIni ?> personas</strong></span>
+                        <span><small>Número de personas</small><strong id="resPersonas"><?= $capacidadIni > 0 ? 'Hasta ' . $capacidadIni . ' personas' : 'Por confirmar' ?></strong></span>
                     </li>
                     <li>
                         <span class="rl-ico"><i class="bi bi-geo-alt-fill"></i></span>
@@ -376,7 +359,7 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
                     <span class="ra-ico"><i class="bi bi-clock-history"></i></span>
                     <span>
                         <strong>Revisión de Pago</strong>
-                        <small>Una vez verificado tu comprobante. Te notificaremos para completar la reserva.</small>
+                        <small><?= isAdmin() ? 'Una vez verificado el comprobante, la reserva queda confirmada.' : htmlspecialchars(textoVerificacionPago()) ?></small>
                     </span>
                 </div>
             </div>
@@ -443,7 +426,7 @@ $horaFinStr = date('H:i', strtotime($horaIniStr . ' +1 hour'));
 .metodo-btn { width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; border: 1.5px solid #e2e8f0; background: #fff; font-weight: 700; color: #101c33; transition: all .15s; }
 .metodo-btn.active { background: #effaf1; border-color: #22c55e; }
 .yape-logo { background: #742284; color: #fff; font-style: italic; font-weight: 800; border-radius: 8px; padding: 6px 10px; font-size: .85rem; }
-.bcp-logo { background: #002a8d; color: #fff; font-weight: 800; border-radius: 8px; padding: 6px 10px; font-size: .8rem; letter-spacing: .5px; }
+.logo-metodo { background: #002a8d; color: #fff; font-weight: 800; border-radius: 8px; padding: 6px 10px; font-size: .8rem; letter-spacing: .5px; }
 /* Panel */
 .pago-panel { border: 1px solid #e8eef4; border-radius: 10px; padding: 14px; }
 .qr-title { font-size: .8rem; font-weight: 600; margin-bottom: 8px; }
@@ -596,6 +579,11 @@ function copiarNumero(num, btn) {
     const inpFecha = document.getElementById('fecha');
     const selHora = document.getElementById('hora_inicio');
     const selDur = document.getElementById('duracion_horas');
+    // Mismo formato que formatoDuracion() de PHP: 30 min, 1 h, 1 h 30 min
+    function fmtDuracion(min) {
+        if (min < 60) return min + ' min';
+        return (min % 60 === 0) ? (min / 60) + ' h' : Math.floor(min / 60) + ' h ' + (min % 60) + ' min';
+    }
     const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
     const meses = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
     const canchasData = <?= json_encode(array_map(function($c) use ($tipoLabels){ return ['id'=> (int)$c['id'], 'nombre'=>$c['nombre'], 'tipo'=>$tipoLabels[$c['tipo']] ?? $c['tipo'], 'precio'=>$c['precio_hora'], 'capacidad'=>$c['capacidad']]; }, $canchas), JSON_UNESCAPED_UNICODE) ?>;
@@ -646,7 +634,7 @@ function copiarNumero(num, btn) {
             const finDate = new Date('2000-01-01T' + ini + ':00');
             finDate.setTime(finDate.getTime() + Math.round(dur * 3600 * 1000));
             const fin = String(finDate.getHours()).padStart(2, '0') + ':' + String(finDate.getMinutes()).padStart(2, '0');
-            document.getElementById('resHorario').textContent = ini + ' - ' + fin + ' (' + dur + ' hora' + (dur > 1 ? 's' : '') + ')';
+            document.getElementById('resHorario').textContent = ini + ' - ' + fin + ' (' + fmtDuracion(Math.round(dur * 60)) + ')';
         }
 
         document.getElementById('resPrecioHora').textContent = 'S/ ' + precio.toFixed(0);
@@ -661,7 +649,7 @@ function copiarNumero(num, btn) {
 
     // Oculta las horas que ya pasaron cuando la fecha elegida es hoy (hora de Lima) - solo si es select
     const HOY_STR = <?= json_encode($hoyStr) ?>;
-    const HORA_MIN_HOY = <?= (int)$horaMinHoy ?>;
+    const MIN_HOY = <?= json_encode($minHoyAdmin) ?>; // 'HH:MM' (hora de Lima calculada en el servidor)
     function filtrarHoras() {
         if(!selHora || selHora.tagName !== 'SELECT' || !inpFecha) return;
         const esHoySel = (inpFecha.value === HOY_STR);
@@ -669,8 +657,7 @@ function copiarNumero(num, btn) {
         let visibles = 0;
         Array.from(selHora.options).forEach(o => {
             if (!o.value) return;
-            const h = parseInt(o.value.slice(0, 2), 10);
-            const pasada = esHoySel && h < HORA_MIN_HOY;
+            const pasada = esHoySel && o.value < MIN_HOY;
             o.hidden = pasada;
             o.disabled = pasada;
             if (!pasada) visibles++;
