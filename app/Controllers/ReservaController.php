@@ -1363,6 +1363,8 @@ class ReservaController extends Controller {
      * Endpoint API para comprobar disponibilidad en tiempo real vía JavaScript
      */
     public function checkAvailability(): void {
+        // Vence pendientes expiradas para informar disponibilidad real.
+        (new Reserva())->expirarPendientes();
         $canchaId = (int)($_GET['cancha_id'] ?? 0);
         $fecha = trim($_GET['fecha'] ?? '');
         $horaInicio = trim($_GET['hora_inicio'] ?? '');

@@ -70,9 +70,18 @@ define('RESERVA_DURACION_BLOQUE_MIN', 30);
 // la usan el aviso al cliente, el control de asistencia y los mensajes de WhatsApp.
 define('TOLERANCIA_MINUTOS', 10);
 
-// Plazo ESTIMADO en que el encargado revisa un comprobante de pago (texto que ve el cliente).
-// Es una politica propuesta por el equipo: no es automatica ni garantizada, y NO es la tolerancia de la hora de juego.
-define('VERIFICACION_PAGO_PLAZO', '10 a 15 minutos');
+// Límite de intentos de login (freno a la fuerza bruta). Es la UNICA fuente:
+// los usa Usuario::bloqueoVigente()/registrarFallo()/limpiarIntentos().
+define('LOGIN_MAX_INTENTOS', 5);
+define('LOGIN_BLOQUEO_MINUTOS', 5);
+
+// Vencimiento de la reserva pendiente: minutos que el cliente tiene para subir el
+// comprobante antes de que la reserva se cancele sola y libere el horario.
+// Es la UNICA fuente del valor: la usa Reserva::expirarPendientes().
+define('RESERVA_PENDIENTE_MINUTOS', 15);
+
+// Plazo que ve el cliente mientras su pago está por verificar (debe coincidir con el vencimiento).
+define('VERIFICACION_PAGO_PLAZO', '15 minutos');
 
 // Espacio de cumpleanos / reuniones: valor por hora (PROVISIONAL, por confirmar con el encargado).
 // Cada cancha opcional se suma con el precio_hora de la propia cancha (S/ 60 por hora).

@@ -47,6 +47,59 @@ class Usuario extends Model {
     }
 
     /**
+     * ¿La cuenta está bloqueada por demasiados intentos fallidos?
+     * Si el bloqueo ya venció, reinicia el contador (auto-limpieza).
+     *
+     * @param string $email
+     * @return array<string, mixed>|null Fila de login_intentos si el bloqueo sigue vigente.
+     */
+    public function bloqueoVigente(string $email): ?array {
+        $email = strtolower(trim($email));
+        $row = $this->selectOne("SELECT intentos, bloqueado_hasta FROM login_intentos WHERE email = ? LIMIT 1", [$email]);
+        if (!$row) {
+            return null;
+        }
+        if (empty($row['bloqueado_hasta'])) {
+            return null; // Aún no bloqueado: se conserva el contador.
+        }
+        if (strtotime((string)$row['bloqueado_hasta']) > time()) {
+            return $row;
+        }
+        $this->execute("DELETE FROM login_intentos WHERE email = ?", [$email]);
+        return null;
+    }
+
+    /**
+     * Registra un intento fallido y bloquea al superar el máximo.
+     *
+     * @param string $email
+     * @return int Intentos acumulados tras este fallo.
+     */
+    public function registrarFallo(string $email): int {
+        $max = defined('LOGIN_MAX_INTENTOS') ? (int)LOGIN_MAX_INTENTOS : 5;
+        $min = defined('LOGIN_BLOQUEO_MINUTOS') ? (int)LOGIN_BLOQUEO_MINUTOS : 15;
+        $email = strtolower(trim($email));
+        $this->execute(
+            "INSERT INTO login_intentos (email, intentos, ultimo_intento, bloqueado_hasta)
+             VALUES (?, 1, NOW(), NULL)
+             ON DUPLICATE KEY UPDATE intentos = intentos + 1, ultimo_intento = NOW(),
+             bloqueado_hasta = IF(intentos >= ?, DATE_ADD(NOW(), INTERVAL ? MINUTE), bloqueado_hasta)",
+            [$email, $max, $min]
+        );
+        $row = $this->selectOne("SELECT intentos FROM login_intentos WHERE email = ? LIMIT 1", [$email]);
+        return (int)($row['intentos'] ?? 1);
+    }
+
+    /**
+     * Limpia los fallos tras un acceso correcto.
+     *
+     * @param string $email
+     */
+    public function limpiarIntentos(string $email): void {
+        $this->execute("DELETE FROM login_intentos WHERE email = ?", [strtolower(trim($email))]);
+    }
+
+    /**
      * Registra un nuevo usuario en el sistema
      *
      * @param array{nombre: string, email: string, password: string, telefono?: string, rol?: string} $datos

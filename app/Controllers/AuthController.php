@@ -49,12 +49,26 @@ class AuthController extends Controller {
         }
 
         $modeloUsuario = new Usuario();
+
+        if ($modeloUsuario->bloqueoVigente($email) !== null) {
+            sessionFlash('error', 'Cuenta bloqueada temporalmente por demasiados intentos fallidos. Intenta de nuevo en unos minutos.', 'danger');
+            $this->redirect('/login');
+        }
+
         $usuario = $modeloUsuario->obtenerPorEmail($email);
 
         if (!$usuario || !password_verify($password, $usuario['password'])) {
-            sessionFlash('error', 'Credenciales inválidas. Verifica tu correo y contraseña.', 'danger');
+            $n = $modeloUsuario->registrarFallo($email);
+            $max = defined('LOGIN_MAX_INTENTOS') ? (int)LOGIN_MAX_INTENTOS : 5;
+            $rest = $max - $n;
+            $msg = $rest > 0
+                ? "Credenciales inválidas. Te quedan {$rest} intentos antes del bloqueo temporal."
+                : 'Demasiados intentos fallidos. Cuenta bloqueada por ' . (defined('LOGIN_BLOQUEO_MINUTOS') ? (int)LOGIN_BLOQUEO_MINUTOS : 15) . ' minutos.';
+            sessionFlash('error', $msg, 'danger');
             $this->redirect('/login');
         }
+
+        $modeloUsuario->limpiarIntentos($email);
 
         // Seguridad: Regenerar ID de sesión para prevenir Session Fixation
         session_regenerate_id(true);

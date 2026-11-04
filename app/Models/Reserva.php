@@ -409,6 +409,41 @@ class Reserva extends Model {
      * @param array<int, array<string, mixed>> $lista Datos de cada reserva (los mismos de crear())
      * @return array{ok: bool, ids: array<int, int>, codigo: ?string, cancha_id: ?int, error: ?string}
      */
+    /**
+     * Vence las reservas pendientes cuyo plazo de pago expiró: las pasa a
+     * «cancelada» (liberando el horario) y rechaza sus pagos en revisión.
+     * Es idempotente y no toca reservas confirmadas ni pagos verificados.
+     * Se invoca al inicio de crearAtomico() y checkAvailability(), por lo que
+     * no requiere cron: el vencimiento se aplica en cada consulta/registro.
+     *
+     * @return int Cantidad de reservas vencidas en esta llamada.
+     */
+    public function expirarPendientes(): int {
+        $min = defined('RESERVA_PENDIENTE_MINUTOS') ? (int)RESERVA_PENDIENTE_MINUTOS : 15;
+        if ($min <= 0) {
+            return 0;
+        }
+        $ids = $this->select(
+            "SELECT id FROM reservas WHERE estado = 'pendiente' AND created_at < (NOW() - INTERVAL ? MINUTE)",
+            [$min]
+        );
+        if (empty($ids)) {
+            return 0;
+        }
+        $list = implode(',', array_map(static fn($f) => (int)$f['id'], $ids));
+        $nota = 'Vencida automáticamente por falta de pago en el plazo de ' . $min . ' minutos.';
+        $this->execute(
+            "UPDATE reservas SET estado = 'cancelada', pago_estado = 'rechazado',
+             observaciones = CONCAT(COALESCE(observaciones, ''), CASE WHEN COALESCE(observaciones, '') = '' THEN '' ELSE '\n' END, ?),
+             updated_at = NOW() WHERE id IN ({$list})",
+            [$nota]
+        );
+        $this->execute(
+            "UPDATE pagos SET estado = 'rechazado' WHERE estado = 'en_revision' AND reserva_id IN ({$list})"
+        );
+        return count($ids);
+    }
+
     public function crearAtomico(array $lista): array {
         $this->ultimoCodigo = null;
         $this->ultimaCancha = null;
@@ -420,6 +455,8 @@ class Reserva extends Model {
         if (empty($lista)) {
             return $fallo('error', null, 'No hay reservas para guardar.');
         }
+        // Vence pendientes expiradas antes de revisar choques (libera horarios).
+        $this->expirarPendientes();
         if ($this->inTransaction()) {
             return $fallo('error', null, 'Ya hay una transacción abierta.');
         }
