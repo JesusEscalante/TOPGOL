@@ -15,6 +15,9 @@
 --   4. Para actualizar una base existente, aplicar solo las migraciones pendientes.
 -- ====================================================================
 
+CREATE DATABASE topgol_db CHARACTER SET utf8mb4 COLLATE UTF8MB4_UNICODE_CI;
+
+USE topgol_db;
 
 -- 1. USUARIOS
 CREATE TABLE IF NOT EXISTS `usuarios` (
