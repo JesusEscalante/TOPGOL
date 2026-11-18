@@ -120,6 +120,9 @@ class CanchaController extends Controller {
         ]);
 
         if ($nuevoId > 0) {
+            auditar('canchas', 'crear', "Creó la cancha '{$nombre}' (S/ {$precioHora}/h, {$tipo})", 'cancha', $nuevoId, [
+                'nombre' => $nombre, 'precio_hora' => $precioHora, 'capacidad' => $capacidad, 'tipo' => $tipo, 'estado' => $estado
+            ]);
             sessionFlash('success', "Cancha '{$nombre}' registrada exitosamente con ID #{$nuevoId}.", 'success');
             $this->redirect('/canchas');
         } else {
@@ -204,6 +207,9 @@ class CanchaController extends Controller {
         ]);
 
         if ($actualizado) {
+            auditar('canchas', 'actualizar', "Actualizó la cancha '{$nombre}' (#{$idCancha}, S/ {$precioHora}/h)", 'cancha', $idCancha, [
+                'nombre' => $nombre, 'precio_hora' => $precioHora, 'capacidad' => $capacidad, 'tipo' => $tipo, 'estado' => $estado
+            ]);
             sessionFlash('success', "Cancha '{$nombre}' actualizada exitosamente.", 'success');
         } else {
             sessionFlash('info', 'No se detectaron cambios en los datos de la cancha.', 'info');
@@ -227,6 +233,9 @@ class CanchaController extends Controller {
         }
         $nuevo = $cancha['estado'] === 'disponible' ? 'mantenimiento' : 'disponible';
         $modeloCancha->cambiarEstado($idCancha, $nuevo);
+        auditar('canchas', 'cambiar_estado', "Cambió el estado de la cancha '{$cancha['nombre']}' a '{$nuevo}'", 'cancha', $idCancha, [
+            'estado_anterior' => $cancha['estado'], 'estado_nuevo' => $nuevo
+        ]);
         $msg = $nuevo === 'disponible' ? "Cancha '{$cancha['nombre']}' reactivada como disponible." : "Cancha '{$cancha['nombre']}' puesta en mantenimiento.";
         sessionFlash('success', $msg, 'success');
         $this->redirect('/canchas');
@@ -259,6 +268,7 @@ class CanchaController extends Controller {
         }
 
         $modeloCancha->eliminar($idCancha);
+        auditar('canchas', 'eliminar', "Eliminó la cancha '{$cancha['nombre']}' (#{$idCancha})", 'cancha', $idCancha, $cancha);
         sessionFlash('success', "La cancha '{$cancha['nombre']}' ha sido eliminada del sistema.", 'success');
         $this->redirect('/canchas');
     }

@@ -59,6 +59,7 @@ class CategoriaController extends Controller {
         ]);
 
         if ($id > 0) {
+            auditar('categorias', 'crear', "Creó la categoría '{$nombre}'", 'categoria', $id, ['nombre' => $nombre, 'slug' => $slug]);
             sessionFlash('success', "Categoría '{$nombre}' creada exitosamente.", 'success');
         } else {
             sessionFlash('error', 'No se pudo crear la categoría.', 'danger');
@@ -97,6 +98,7 @@ class CategoriaController extends Controller {
         ]);
 
         if ($ok) {
+            auditar('categorias', 'actualizar', "Actualizó la categoría '{$nombre}' (#{$idCat})", 'categoria', $idCat, ['nombre' => $nombre, 'activo' => $activo]);
             sessionFlash('success', "Categoría '{$nombre}' actualizada.", 'success');
         } else {
             sessionFlash('info', 'Sin cambios en la categoría.', 'info');
@@ -115,6 +117,7 @@ class CategoriaController extends Controller {
         $idCat = (int)$id;
         $modelo = new Categoria();
         $modelo->toggleActivo($idCat);
+        auditar('categorias', 'cambiar_estado', "Alternó el estado activo de la categoría #{$idCat}", 'categoria', $idCat);
 
         sessionFlash('success', 'Estado de categoría actualizado.', 'success');
         $this->redirect('/admin/categorias');
@@ -133,6 +136,7 @@ class CategoriaController extends Controller {
         $res = $modelo->eliminar($idCat);
 
         if ($res['ok']) {
+            auditar('categorias', 'eliminar', "Eliminó la categoría #{$idCat} ({$res['mensaje']})", 'categoria', $idCat);
             sessionFlash('success', $res['mensaje'], 'success');
         } else {
             sessionFlash('error', $res['error'], 'warning');

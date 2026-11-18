@@ -132,6 +132,8 @@ $router->get('/api/cancha/disponibilidad', 'ReservaController@checkAvailability'
 // Panel Administrativo y Usuarios
 $router->get('/admin/dashboard', 'UsuarioController@dashboard', ['admin']);
 $router->get('/admin/usuarios', 'UsuarioController@index', ['admin']);
+$router->get('/admin/auditoria', 'AuditoriaController@index', ['admin']);
+$router->get('/admin/auditoria/exportar', 'AuditoriaController@exportar', ['admin']);
 $router->get('/admin/reportes', 'ReporteController@index', ['admin']);
 $router->get('/admin/reportes/exportar', 'ReporteController@exportar', ['admin']);
 

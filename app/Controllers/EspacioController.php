@@ -252,6 +252,15 @@ class EspacioController extends Controller {
             (new Mailer())->notificarSolicitudEspacio($solicitudActualizada);
         }
 
+        auditar(
+            'espacios',
+            'cambiar_estado',
+            "Actualizó solicitud de espacio #{$id} a '{$estado}'" . ($precio !== null ? " (Cotización: S/ " . number_format($precio, 2) . ")" : ''),
+            'solicitud_espacio',
+            (int)$id,
+            ['estado' => $estado, 'precio_cotizado' => $precio]
+        );
+
         sessionFlash('success', "Solicitud #{$id} actualizada correctamente.", 'success');
         $this->redirect('/admin/espacios');
     }

@@ -61,6 +61,7 @@ $nav = [
     ['key' => 'reportes',   'label' => 'Reportes',   'ico' => 'bi-bar-chart-line', 'href' => url('/admin/reportes'), 'tabs' => []],
     ['key' => 'canchas',    'label' => 'Canchas',    'ico' => 'bi-grid',           'href' => url('/canchas'), 'tabs' => []],
     ['key' => 'usuarios',   'label' => 'Usuarios',   'ico' => 'bi-people',         'href' => url('/admin/usuarios'), 'tabs' => []],
+    ['key' => 'auditoria',  'label' => 'Auditoría',  'ico' => 'bi-shield-check',   'href' => url('/admin/auditoria'), 'tabs' => []],
 ];
 
 // Pantalla (pestaña) activa según la ruta; el valor que manda la vista ($adminMenu) es el respaldo.
@@ -70,7 +71,7 @@ $tabPorRutaAdm = [
     '/admin/caja' => 'caja', '/admin/pagos' => 'porverificar', '/admin/pago' => 'porverificar',
     '/admin/ventas/pos' => 'pos', '/admin/ventas' => 'ventas',
     '/admin/productos' => 'productos', '/admin/categorias' => 'categorias', '/admin/inventario' => 'inventario',
-    '/admin/reportes' => 'reportes', '/canchas' => 'canchas', '/admin/usuarios' => 'usuarios',
+    '/admin/reportes' => 'reportes', '/canchas' => 'canchas', '/admin/usuarios' => 'usuarios', '/admin/auditoria' => 'auditoria',
 ];
 $tabActivaAdm = $adminMenuActivo;
 $mejorLargoAdm = 0;

@@ -447,6 +447,17 @@ class ReservaController extends Controller {
                 (new Mailer())->notificarReservaRecibida($resumenCorreo);
             }
 
+            if ($esAdmin) {
+                auditar(
+                    'reservas',
+                    'crear',
+                    "Registró reserva administrativa #{$idReserva} en {$cancha['nombre']} ({$fecha} {$horaInicioNormalizada}, origen: {$origen})",
+                    'reserva',
+                    $idReserva,
+                    ['cliente' => $clienteNombre, 'cancha' => $cancha['nombre'], 'fecha' => $fecha, 'hora_inicio' => $horaInicioNormalizada, 'origen' => $origen, 'total' => $totalPago]
+                );
+            }
+
             if ($comprobante !== null) {
                 sessionFlash('success', "¡Reserva #{$idReserva} registrada! Recibimos tu comprobante ({$metodoPago}) y está en revisión. Total: " . formatPrice($totalPago), 'success');
             } else {
@@ -611,6 +622,16 @@ class ReservaController extends Controller {
                     (new Mailer())->notificarPagoRechazado($resumenPago);
                 }
             }
+        }
+        if ($ok) {
+            auditar(
+                'pagos',
+                'cambiar_estado_pago',
+                "Cambió estado de pago de " . (!empty($grupo) ? "evento {$grupo}" : "reserva #{$idReserva}") . " a '{$nuevoEstado}'",
+                !empty($grupo) ? 'evento' : 'reserva',
+                !empty($grupo) ? (string)$grupo : $idReserva,
+                ['pago_estado' => $nuevoEstado]
+            );
         }
         if ($this->isAjax()) {
             if ($ok) {
@@ -1221,6 +1242,17 @@ class ReservaController extends Controller {
             (new Mailer())->notificarReservaRecibida($resumenEventoCorreo);
         }
 
+        if ($esAdmin) {
+            auditar(
+                'reservas',
+                'crear_evento',
+                "Registró evento grupal administrativo (" . count($creados) . " canchas) para el {$fecha}",
+                'evento',
+                $grupo,
+                ['canchas_count' => count($creados), 'fecha' => $fecha, 'total' => $totalGeneral, 'cliente' => $clienteNombre]
+            );
+        }
+
         sessionFlash('success', "¡Evento registrado con " . count($creados) . " canchas el {$fecha}! Total: " . formatPrice($totalGeneral) . " · Adelanto: " . formatPrice($adelantoTotal) . " (S/ 20 x cancha).", 'success');
         if ($esAdmin) {
             $this->redirect('/admin/reservas');
@@ -1324,6 +1356,9 @@ class ReservaController extends Controller {
         $cancelado = $modeloReserva->cancelar($idReserva, $usuarioId, isAdmin());
 
         if ($cancelado) {
+            if (isAdmin()) {
+                auditar('reservas', 'cancelar', "Canceló la reserva #{$idReserva}", 'reserva', $idReserva);
+            }
             $resumenCancel = $modeloReserva->obtenerResumenNotificacion($idReserva);
             if ($resumenCancel !== null) {
                 $motivoCancel = isAdmin() ? 'Cancelada por el administrador del complejo.' : 'Cancelada a solicitud del cliente.';
@@ -1382,6 +1417,14 @@ class ReservaController extends Controller {
         }
 
         if ($okEstado) {
+            auditar(
+                'reservas',
+                'cambiar_estado',
+                "Actualizó el estado de " . (!empty($grupo) ? "evento {$grupo}" : "reserva #{$idReserva}") . " a '{$nuevoEstado}'" . ($motivoCancelacion !== '' ? " (Motivo: {$motivoCancelacion})" : ''),
+                !empty($grupo) ? 'evento' : 'reserva',
+                !empty($grupo) ? (string)$grupo : $idReserva,
+                ['estado' => $nuevoEstado, 'motivo' => $motivoCancelacion]
+            );
             $resumenEstado = $modeloReserva->obtenerResumenNotificacion($idReserva, !empty($grupo) ? (string)$grupo : null);
             if ($resumenEstado !== null) {
                 (new Mailer())->notificarEstadoReserva($resumenEstado, $nuevoEstado, $motivoCancelacion);
@@ -1480,6 +1523,14 @@ class ReservaController extends Controller {
             }
             sessionFlash('error', $res['error'] ?? 'Error al registrar la asistencia.', 'danger');
         } else {
+            auditar(
+                'reservas',
+                'asistencia',
+                "Registró asistencia '{$asistenciaEstado}' en reserva #{$reservaId}",
+                'reserva',
+                $reservaId,
+                ['asistencia_estado' => $asistenciaEstado, 'hora' => $asistenciaHora, 'notas' => $asistenciaNotas, 'liberar_cancha' => $liberarCancha]
+            );
             // Regla de cierre: asistió + saldo en cero + ya pasó la hora de fin => finalizada
             $modeloReserva->sincronizarFinalizacion($reservaId);
             if ($this->isAjax()) {
@@ -1550,6 +1601,14 @@ class ReservaController extends Controller {
         if ($resumenNuevo !== null && $reservaAnterior !== null) {
             (new Mailer())->notificarReprogramacion($resumenNuevo, $reservaAnterior, $motivo);
         }
+        auditar(
+            'reservas',
+            'reprogramar',
+            "Reprogramó la reserva #{$reservaId} para {$nuevaFecha} {$nuevaHoraInicio}" . ($motivo !== '' ? " (Motivo: {$motivo})" : ''),
+            'reserva',
+            $reservaId,
+            ['cancha_id_nueva' => $nuevaCanchaId, 'fecha_nueva' => $nuevaFecha, 'hora_nueva' => $nuevaHoraInicio, 'duracion' => $duracionHoras, 'motivo' => $motivo]
+        );
 
         if ($this->isAjax()) {
             $this->json($res);

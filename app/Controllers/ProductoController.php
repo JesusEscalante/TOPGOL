@@ -82,6 +82,7 @@ class ProductoController extends Controller {
         $id = $modelo->crear($datos, $adminId);
 
         if ($id > 0) {
+            auditar('productos', 'crear', "Creó el producto '{$datos['nombre']}' (S/ {$datos['precio']}, stock inicial: {$datos['stock']})", 'producto', $id, $datos);
             sessionFlash('success', "Producto '{$datos['nombre']}' registrado correctamente en el catálogo.", 'success');
             $this->redirect('/admin/productos');
         }
@@ -137,6 +138,7 @@ class ProductoController extends Controller {
 
         $modelo = new Producto();
         if ($modelo->actualizar($idProducto, $datos, $adminId)) {
+            auditar('productos', 'actualizar', "Actualizó el producto '{$datos['nombre']}' (#{$idProducto})", 'producto', $idProducto, $datos);
             sessionFlash('success', "Producto '{$datos['nombre']}' actualizado.", 'success');
         } else {
             sessionFlash('info', 'Sin cambios en el producto.', 'info');
@@ -162,6 +164,17 @@ class ProductoController extends Controller {
 
         $modelo = new Producto();
         $res = $modelo->ajustarStock($idProducto, $tipo, $cantidad, $adminId, $motivo);
+
+        if ($res['ok']) {
+            auditar(
+                'inventario',
+                'ajustar_stock',
+                "Ajustó stock ({$tipo}: {$cantidad}) del producto #{$idProducto}. Motivo: {$motivo}",
+                'producto',
+                $idProducto,
+                ['tipo' => $tipo, 'cantidad' => $cantidad, 'motivo' => $motivo, 'stock_nuevo' => $res['stock_nuevo'] ?? null]
+            );
+        }
 
         if ($this->isAjax()) {
             $this->json($res, $res['ok'] ? 200 : 400);
@@ -189,6 +202,7 @@ class ProductoController extends Controller {
         $res = $modelo->eliminarSeguro($idProducto);
 
         if ($res['ok']) {
+            auditar('productos', 'eliminar', "Eliminó el producto #{$idProducto} ({$res['mensaje']})", 'producto', $idProducto);
             sessionFlash('success', $res['mensaje'], 'success');
         } else {
             sessionFlash('error', $res['error'], 'warning');
@@ -209,6 +223,7 @@ class ProductoController extends Controller {
         $ok = $modelo->descontinuar($idProducto);
 
         if ($ok) {
+            auditar('productos', 'descontinuar', "Marcó como descontinuado el producto #{$idProducto}", 'producto', $idProducto);
             sessionFlash('success', 'Producto marcado como descontinuado. No estará disponible en el mostrador.', 'info');
         } else {
             sessionFlash('error', 'No se pudo actualizar el estado del producto.', 'danger');

@@ -114,6 +114,17 @@ class VentaController extends Controller {
             'notas'          => $notas,
         ], $items, $adminId, $token);
 
+        if ($resultado['ok']) {
+            auditar(
+                'ventas',
+                'venta_pos',
+                "Registró venta POS " . ($resultado['codigo'] ?? '') . " por S/ " . number_format((float)($resultado['total'] ?? 0), 2) . " ({$metodoPago})",
+                'venta',
+                $resultado['venta_id'] ?? null,
+                ['codigo' => $resultado['codigo'] ?? '', 'total' => $resultado['total'] ?? 0, 'metodo_pago' => $metodoPago, 'cliente' => $clienteNombre]
+            );
+        }
+
         if ($this->isAjax()) {
             $this->json($resultado, $resultado['ok'] ? 200 : 400);
         }

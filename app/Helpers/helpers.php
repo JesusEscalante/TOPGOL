@@ -895,3 +895,28 @@ function whatsappNegocioUrl(string $texto): ?string {
     $wa = contactoConfig()['whatsapp'];
     return $wa === '' ? null : 'https://wa.me/' . $wa . '?text=' . urlencode($texto);
 }
+
+/**
+ * Registra una operación sensible en la bitácora de auditoría administrativa (RF32).
+ *
+ * @param string $modulo Módulo funcional ('reservas', 'pagos', 'canchas', 'productos', 'inventario', 'categorias', 'ventas', 'espacios', 'auth')
+ * @param string $accion Acción realizada ('crear', 'actualizar', 'eliminar', 'cambiar_estado', 'verificar_pago', 'rechazar_pago', etc.)
+ * @param string $descripcion Resumen legible de la acción
+ * @param string|null $entidad Entidad afectada
+ * @param string|int|null $entidadId ID de la entidad afectada
+ * @param array<string, mixed>|null $datos Datos contextuales adicionales
+ */
+function auditar(
+    string $modulo,
+    string $accion,
+    string $descripcion,
+    ?string $entidad = null,
+    string|int|null $entidadId = null,
+    ?array $datos = null
+): void {
+    try {
+        (new \App\Models\Auditoria())->registrar($modulo, $accion, $descripcion, $entidad, $entidadId, $datos);
+    } catch (\Throwable $e) {
+        error_log('[TOP GOL][auditar] ' . $e->getMessage());
+    }
+}

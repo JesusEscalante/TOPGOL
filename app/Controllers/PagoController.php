@@ -229,6 +229,14 @@ class PagoController extends Controller {
             if ($resumenCobro !== null) {
                 (new Mailer())->notificarCobroSaldo($resumenCobro, $monto, $metodo);
             }
+            auditar(
+                'pagos',
+                'cobro_saldo',
+                "Registró cobro de saldo S/ " . number_format($monto, 2) . " ({$metodo}) para " . ($grupo !== '' ? "evento {$grupo}" : "reserva #{$idReserva}"),
+                $grupo !== '' ? 'evento' : 'reserva',
+                $grupo !== '' ? $grupo : $idReserva,
+                ['monto' => $monto, 'metodo_pago' => $metodo, 'notas' => $notas]
+            );
         }
 
         if ($this->isAjax()) {
@@ -287,6 +295,16 @@ class PagoController extends Controller {
             if ($resumen !== null) {
                 (new Mailer())->notificarPagoVerificado($resumen);
             }
+        }
+        if ($ok) {
+            auditar(
+                'pagos',
+                'verificar_pago',
+                "Verificó comprobante de pago para " . ($grupo !== '' ? "evento {$grupo}" : "reserva #{$idReserva}"),
+                $grupo !== '' ? 'evento' : 'reserva',
+                $grupo !== '' ? $grupo : $idReserva,
+                ['horario_tomado' => $horarioTomado]
+            );
         }
 
         if ($this->isAjax()) {
@@ -349,6 +367,14 @@ class PagoController extends Controller {
             if ($resumen !== null) {
                 (new Mailer())->notificarPagoRechazado($resumen, $motivo);
             }
+            auditar(
+                'pagos',
+                'rechazar_pago',
+                "Rechazó comprobante y canceló " . ($grupo !== '' ? "evento {$grupo}" : "reserva #{$idReserva}") . ". Motivo: {$motivo}",
+                $grupo !== '' ? 'evento' : 'reserva',
+                $grupo !== '' ? $grupo : $idReserva,
+                ['motivo' => $motivo]
+            );
         }
 
         if ($this->isAjax()) {
