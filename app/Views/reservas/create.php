@@ -664,7 +664,6 @@ function copiarNumero(num, btn) {
             if (pasada && o.selected) seleccionValida = false;
         });
         if (!seleccionValida) selHora.value = '';
-        if (window.refreshTomSelect) window.refreshTomSelect(selHora);
         const aviso = document.getElementById('sinHorariosHoy');
         if (aviso) aviso.classList.toggle('d-none', !(esHoySel && visibles === 0));
     }

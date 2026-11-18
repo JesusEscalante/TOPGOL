@@ -422,10 +422,6 @@ function copiarNumero(num, btn){
                 if(libre) selMinValEvt.value = libre.value;
             }
         }
-        if (window.refreshTomSelect) {
-            window.refreshTomSelect(selHoraValEvt);
-            if (selMinValEvt) window.refreshTomSelect(selMinValEvt);
-        }
         var aviso=document.getElementById('sinHorariosHoy');
         if(aviso) aviso.classList.toggle('d-none', !(esHoy && visibles===0));
         actualizarInputHora();

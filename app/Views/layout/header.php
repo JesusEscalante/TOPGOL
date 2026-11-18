@@ -39,7 +39,6 @@ $navActive = static function (string ...$rutas) use ($rutaActual): string {
     <title><?= htmlspecialchars($tituloPagina) ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css">
-    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,600;0,700;0,800;0,900;1,700;1,800;1,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -75,18 +74,6 @@ $navActive = static function (string ...$rutas) use ($rutaActual): string {
         @media (min-width: 992px) and (max-width: 1399px) {
             .navbar-topgol .navbar-nav .nav-link { padding-left: .5rem; padding-right: .5rem; font-size: .88rem; }
         }
-        /* Integración Tom Select - Tema TOP GOL */
-        .ts-wrapper.form-select, .ts-wrapper.single { padding: 0 !important; border: none !important; background: transparent !important; box-shadow: none !important; }
-        .ts-wrapper .ts-control { border-radius: 8px; border: 1px solid #cbd5e1; padding: 0.48rem 2rem 0.48rem 0.75rem; min-height: 38px; font-size: 0.9rem; color: #0f172a; background-color: #fff; box-shadow: none; transition: border-color .15s, box-shadow .15s; }
-        .ts-wrapper.focus .ts-control { border-color: #1a7a3a !important; box-shadow: 0 0 0 3px rgba(26, 122, 58, 0.16) !important; }
-        .ts-wrapper.ts-sm .ts-control { min-height: 31px; padding: 0.25rem 1.8rem 0.25rem 0.6rem; font-size: 0.82rem; border-radius: 7px; }
-        .ts-wrapper.ts-search-card { width: 100%; }
-        .ts-wrapper.ts-search-card .ts-control { border: none !important; background: transparent !important; padding: 0 18px 0 0 !important; min-height: 22px !important; font-size: 0.875rem !important; font-weight: 600 !important; color: #0f172a !important; box-shadow: none !important; }
-        .input-group > .ts-wrapper { flex: 1 1 auto; width: 1%; min-width: 68px; }
-        .ts-dropdown { z-index: 2050 !important; border-radius: 10px !important; border: 1px solid #e2e8f0 !important; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12) !important; font-size: 0.88rem; overflow: hidden; }
-        .ts-dropdown .option { padding: 8px 12px; }
-        .ts-dropdown .option.active, .ts-dropdown .option:hover { background-color: #eef7f0 !important; color: #166534 !important; font-weight: 600; }
-        .ts-dropdown .option.selected { background-color: #1a7a3a !important; color: #fff !important; font-weight: 600; }
     </style>
 </head>
 <body>
