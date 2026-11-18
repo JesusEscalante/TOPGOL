@@ -48,6 +48,8 @@ declare(strict_types=1);
                             <th>Duración</th>
                             <th>Total</th>
                             <th>Estado</th>
+                            <th>Pago</th>
+                            <th>Saldo</th>
                             <th class="text-end pe-3">Acciones</th>
                         </tr>
                     </thead>
@@ -61,6 +63,10 @@ declare(strict_types=1);
                                     'finalizada' => 'fin',
                                     default      => 'mut'
                                 };
+                                $totalR = (float)($r['total_pago'] ?? 0.0);
+                                $pagadoR = (float)($r['total_pagado'] ?? 0.0);
+                                $saldoR = (float)($r['saldo_pendiente'] ?? max(0.0, round($totalR - $pagadoR, 2)));
+                                $etPago = etiquetaPagoReserva($totalR, $pagadoR, (string)($r['pago_estado'] ?? 'pendiente'));
                                 $puedeCancelar = in_array($r['estado'], ['pendiente', 'confirmada'], true) && ($r['fecha'] >= date('Y-m-d'));
                             ?>
                             <tr>
@@ -84,12 +90,23 @@ declare(strict_types=1);
                                         <?= match ((string)$r['estado']) { 'confirmada' => 'Confirmada', 'pendiente' => 'Pendiente', 'cancelada' => 'Cancelada', 'finalizada' => 'Completada', default => ucfirst((string)$r['estado']) } ?>
                                     </span>
                                 </td>
+                                <td>
+                                    <span class="pill <?= $etPago['cls'] ?>">
+                                        <?= htmlspecialchars($etPago['texto']) ?>
+                                    </span>
+                                </td>
+                                <td class="fw-bold <?= $r['estado'] === 'cancelada' ? 'text-muted' : ($saldoR > 0 ? 'text-danger' : 'text-success') ?>">
+                                    <?= $r['estado'] === 'cancelada' ? '—' : formatPrice($saldoR) ?>
+                                </td>
                                 <td class="text-end pe-3" style="white-space:nowrap;">
                                     <a href="<?= url('/mis-reservas/' . $r['id']) ?>" class="btn-ver">
                                         <i class="bi bi-eye me-1"></i> Ver detalle
                                     </a>
                                     <?php if ($puedeCancelar): ?>
-                                        <form action="<?= url('/reserva/cancelar/' . $r['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('¿Seguro que deseas cancelar la reserva #<?= (int)$r['id'] ?> de la <?= htmlspecialchars($r['cancha_nombre'], ENT_QUOTES) ?>?');">
+                                        <form action="<?= url('/reserva/cancelar/' . $r['id']) ?>" method="POST" class="d-inline"
+                                              data-swal-title="¿Cancelar reserva?"
+                                              data-swal-confirm="¿Seguro que deseas cancelar la reserva #<?= (int)$r['id'] ?> de la <?= htmlspecialchars($r['cancha_nombre'], ENT_QUOTES) ?>?"
+                                              data-swal-btn="Sí, cancelar">
                                             <?= csrf_field() ?>
                                             <button type="submit" class="btn-ver danger" style="border:0; background:none;">
                                                 <i class="bi bi-x-circle me-1"></i> Cancelar
@@ -123,6 +140,7 @@ declare(strict_types=1);
 .pill.warn { background: #fbeecb; color: #92400e; }
 .pill.bad { background: #fbdcdc; color: #991b1b; }
 .pill.fin { background: #e2e8f0; color: #475569; }
+.pill.info { background: #e0f2fe; color: #0369a1; }
 .pill.mut { background: #f1f5f9; color: #64748b; }
 .btn-ver { display: inline-block; border: 1px solid #cbd5e1; border-radius: 8px; padding: 5px 12px; font-size: .75rem; font-weight: 600; color: #101c33; margin-right: 4px; }
 .btn-ver:hover { border-color: #1a7a3a; color: #1a7a3a; }

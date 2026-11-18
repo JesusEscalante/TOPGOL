@@ -172,7 +172,12 @@ $estCls = static fn(string $e): string => match ($e) {
 
                                 <!-- Descontinuar (si está disponible o agotado) -->
                                 <?php if ($p['estado'] !== 'descontinuado'): ?>
-                                    <form action="<?= url('/admin/productos/descontinuar/' . $p['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('¿Marcar \'<?= htmlspecialchars(addslashes($p['nombre'])) ?>\' como descontinuado?')">
+                                    <form action="<?= url('/admin/productos/descontinuar/' . $p['id']) ?>" method="POST" class="d-inline"
+                                          data-swal-title="¿Descontinuar producto?"
+                                          data-swal-icon="warning"
+                                          data-swal-color="#d97706"
+                                          data-swal-confirm="¿Marcar &quot;<?= htmlspecialchars($p['nombre'], ENT_QUOTES) ?>&quot; como descontinuado?"
+                                          data-swal-btn="Sí, descontinuar">
                                         <?= csrf_field() ?>
                                         <button type="submit" class="btn-mini" title="Descontinuar (ocultar de venta)">
                                             <i class="bi bi-archive text-warning"></i>
@@ -181,7 +186,10 @@ $estCls = static fn(string $e): string => match ($e) {
                                 <?php endif; ?>
 
                                 <!-- Eliminar (con protección) -->
-                                <form action="<?= url('/admin/productos/eliminar/' . $p['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('¿Intentar eliminar \'<?= htmlspecialchars(addslashes($p['nombre'])) ?>\' del catálogo?')">
+                                <form action="<?= url('/admin/productos/eliminar/' . $p['id']) ?>" method="POST" class="d-inline"
+                                      data-swal-title="¿Eliminar producto?"
+                                      data-swal-confirm="¿Intentar eliminar &quot;<?= htmlspecialchars($p['nombre'], ENT_QUOTES) ?>&quot; del catálogo?"
+                                      data-swal-btn="Sí, eliminar">
                                     <?= csrf_field() ?>
                                     <button type="submit" class="btn-mini bad" title="Eliminar">
                                         <i class="bi bi-trash"></i>

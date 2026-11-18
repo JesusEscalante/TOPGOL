@@ -90,9 +90,9 @@ function hasFlash(string $clave): bool {
 }
 
 /**
- * Renderiza en HTML todas las alertas flash acumuladas con estilo Bootstrap 5
+ * Renderiza todas las alertas flash acumuladas utilizando SweetAlert2
  *
- * @return string HTML de las alertas
+ * @return string Script JS de las alertas SweetAlert2
  */
 function renderFlashMessages(): string {
     if (session_status() === PHP_SESSION_NONE) {
@@ -102,27 +102,52 @@ function renderFlashMessages(): string {
         return '';
     }
 
-    $html = '';
+    $alertas = [];
     foreach ($_SESSION['flash'] as $key => $flash) {
-        $tipo = htmlspecialchars($flash['tipo']);
-        $mensaje = htmlspecialchars($flash['mensaje']);
-        $icono = match($tipo) {
-            'success' => 'bi-check-circle-fill',
-            'danger', 'error' => 'bi-exclamation-triangle-fill',
-            'warning' => 'bi-exclamation-circle-fill',
-            default => 'bi-info-circle-fill'
+        $tipo = (string)($flash['tipo'] ?? 'info');
+        $mensaje = (string)($flash['mensaje'] ?? '');
+        $icono = match ($tipo) {
+            'success' => 'success',
+            'danger', 'error' => 'error',
+            'warning' => 'warning',
+            default => 'info',
         };
-        $alertTipo = ($tipo === 'error') ? 'danger' : $tipo;
+        $titulo = match ($icono) {
+            'success' => '¡Listo!',
+            'error'   => 'Atención',
+            'warning' => 'Aviso importante',
+            default   => 'Información',
+        };
+        $color = match ($icono) {
+            'success' => '#1a7a3a',
+            'error'   => '#dc2626',
+            'warning' => '#d97706',
+            default   => '#1a7a3a',
+        };
 
-        $html .= "
-        <div class=\"alert alert-{$alertTipo} alert-dismissible fade show d-flex align-items-center mb-4 shadow-sm\" role=\"alert\">
-            <i class=\"bi {$icono} me-2 fs-5\"></i>
-            <div class=\"flex-grow-1\">{$mensaje}</div>
-            <button type=\"button\" class=\"btn-close\" data-bs-dismiss=\"alert\" aria-label=\"Close\"></button>
-        </div>";
+        $alertas[] = [
+            'icon'               => $icono,
+            'title'              => $titulo,
+            'text'               => $mensaje,
+            'confirmButtonText'  => 'Aceptar',
+            'confirmButtonColor' => $color,
+        ];
     }
     unset($_SESSION['flash']);
-    return $html;
+
+    $json = json_encode($alertas, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+    return "<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var cola = {$json};
+        if (typeof Swal !== 'undefined' && Array.isArray(cola)) {
+            (async function () {
+                for (var i = 0; i < cola.length; i++) {
+                    await Swal.fire(cola[i]);
+                }
+            })();
+        }
+    });
+    </script>";
 }
 
 /**

@@ -73,7 +73,10 @@
                                         <button type="submit" class="btn btn-sm btn-primary" title="Guardar cambios">Guardar</button>
                                     </form>
                                     <?php if (!empty($s['observaciones'])): ?>
-                                        <button class="btn btn-sm btn-outline-secondary mt-1" onclick="alert('Observaciones:\n<?= htmlspecialchars(addslashes($s['observaciones'])) ?>')" title="Ver observaciones">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary mt-1"
+                                                data-obs="<?= htmlspecialchars((string)$s['observaciones'], ENT_QUOTES) ?>"
+                                                onclick="Swal.fire({ title: 'Observaciones de la solicitud', text: this.getAttribute('data-obs'), icon: 'info', confirmButtonColor: '#1a7a3a', confirmButtonText: 'Cerrar' })"
+                                                title="Ver observaciones">
                                             <i class="bi bi-chat-text"></i>
                                         </button>
                                     <?php endif; ?>

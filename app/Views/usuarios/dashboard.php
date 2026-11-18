@@ -358,6 +358,62 @@ $tipoCorto = ['futbol_5' => 'Fútbol 5', 'futbol_7' => 'Fútbol 7', 'futbol_11' 
 </div>
 
 <!-- ====================================================================
+     INDICADORES DE LA SEMANA (LUNES A DOMINGO) Y USUARIOS
+     ==================================================================== -->
+<?php
+$sem = $resumenSemana ?? [];
+$rangoSemana = date('d/m/Y', strtotime($lunes)) . ' al ' . date('d/m/Y', strtotime($domingo));
+?>
+<div class="panel-2 mb-4">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+        <div>
+            <h3 class="m-0"><i class="bi bi-calendar-week text-success me-1"></i> Indicadores de la semana (<?= htmlspecialchars($rangoSemana) ?>)</h3>
+            <div class="psub">Consolidado semanal de reservas, ingresos y ventas</div>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="<?= url('/admin/usuarios') ?>" class="btn btn-sm btn-outline-secondary fw-bold" style="border-radius:8px;">
+                <i class="bi bi-people me-1"></i> Usuarios registrados (<?= (int)($estadisticas['total_usuarios'] ?? 0) ?>)
+            </a>
+            <a href="<?= url('/admin/reportes?periodo=semana' . ($incluirDemo ? '&demo=1' : '')) ?>" class="btn btn-sm btn-outline-success fw-bold" style="border-radius:8px;">
+                <i class="bi bi-bar-chart-line me-1"></i> Ver reporte semanal →
+            </a>
+        </div>
+    </div>
+    <div class="row g-3">
+        <div class="col-6 col-md-3">
+            <div class="p-3 rounded-3 border bg-light h-100">
+                <div class="small text-muted fw-bold text-uppercase" style="font-size:.72rem;">Reservas de la semana</div>
+                <div class="fs-4 fw-bold text-dark mt-1"><?= (int)($sem['total_reservas'] ?? 0) ?></div>
+                <small class="text-muted"><?= number_format((float)($sem['horas_cancha'] ?? 0), 1) ?> hrs-cancha · <?= (int)($sem['confirmadas'] ?? 0) ?> confirmadas</small>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="p-3 rounded-3 border bg-light h-100">
+                <div class="small text-muted fw-bold text-uppercase" style="font-size:.72rem;">Ingresos cobrados (semana)</div>
+                <div class="fs-4 fw-bold text-success mt-1">S/ <?= $fmtNum((float)($sem['ingresos_totales'] ?? 0)) ?></div>
+                <small class="text-muted">Canchas: S/ <?= $fmtNum((float)($sem['canchas_total'] ?? 0)) ?></small>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="p-3 rounded-3 border bg-light h-100">
+                <div class="small text-muted fw-bold text-uppercase" style="font-size:.72rem;">Ventas de productos (semana)</div>
+                <div class="fs-4 fw-bold text-primary mt-1">S/ <?= $fmtNum((float)($sem['productos_total'] ?? 0)) ?></div>
+                <small class="text-muted">Bar y mostrador POS</small>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="p-3 rounded-3 border bg-light h-100">
+                <div class="small text-muted fw-bold text-uppercase" style="font-size:.72rem;">Saldo pendiente (semana)</div>
+                <div class="fs-4 fw-bold <?= ((float)($sem['saldo_pendiente'] ?? 0)) > 0 ? 'text-warning' : 'text-muted' ?> mt-1">
+                    S/ <?= $fmtNum((float)($sem['saldo_pendiente'] ?? 0)) ?>
+                </div>
+                <small class="text-muted">Por cobrar en reservas activas</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ====================================================================
      SECCIÓN INTERMEDIA: OCUPACIÓN DE CANCHAS Y RESERVAS RECIENTES
      ==================================================================== -->
 <div class="row g-3 mb-4">

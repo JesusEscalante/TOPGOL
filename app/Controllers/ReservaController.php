@@ -1138,6 +1138,7 @@ class ReservaController extends Controller {
         $grupo = bin2hex(random_bytes(8));
         $modeloReserva = new Reserva();
         $lista = [];
+        $estadoInicialEvento = $esAdmin ? 'confirmada' : 'pendiente';
         foreach ($items as $it) {
             $lista[] = [
                 'usuario_id' => $usuarioId,
@@ -1147,7 +1148,7 @@ class ReservaController extends Controller {
                 'hora_fin' => $it['hora_fin'],
                 'duracion_horas' => $it['dur'],
                 'total_pago' => $it['total'],
-                'estado' => 'confirmada',
+                'estado' => $estadoInicialEvento,
                 'observaciones' => $observaciones !== '' ? $observaciones . ' | Evento ' . $grupo : 'Evento ' . $grupo,
                 'metodo_pago' => $metodoPago,
                 'adelanto_monto' => $it['adelanto'],

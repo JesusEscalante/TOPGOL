@@ -292,6 +292,15 @@ CREATE TABLE IF NOT EXISTS `solicitudes_espacios_canchas` (
   CONSTRAINT `fk_sec_cancha` FOREIGN KEY (`cancha_id`) REFERENCES `canchas` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 13. REGISTROS DE INTENTOS DE LOGIN (prevencion de ataques de fuerza bruta)
+CREATE TABLE IF NOT EXISTS `login_intentos` (
+  `email`            VARCHAR(100) NOT NULL,
+  `intentos`         INT NOT NULL DEFAULT 0,
+  `ultimo_intento`   TIMESTAMP NULL DEFAULT NULL,
+  `bloqueado_hasta`  TIMESTAMP NULL DEFAULT NULL,
+  PRIMARY KEY (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ====================================================================
 -- SEEDS: DATOS DE DEMOSTRACION
 -- Contrasena Admin  : admin123

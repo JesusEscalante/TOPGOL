@@ -105,13 +105,36 @@ document.addEventListener('DOMContentLoaded', function () {
         actualizarCalculosReserva();
     }
 
-    // 3. Confirmación para botones con clase .btn-confirmar-eliminar
+    // 3. Confirmación para botones con clase .btn-confirmar-eliminar (SweetAlert2)
     const botonesEliminar = document.querySelectorAll('.btn-confirmar-eliminar');
     botonesEliminar.forEach(btn => {
         btn.addEventListener('click', function (e) {
+            if (this.dataset.swalConfirmed === '1') {
+                return;
+            }
+            e.preventDefault();
             const mensaje = this.getAttribute('data-confirm') || '¿Estás seguro de que deseas eliminar este elemento? Esta acción no se puede deshacer.';
-            if (!confirm(mensaje)) {
-                e.preventDefault();
+            const self = this;
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: '¿Estás seguro?',
+                    text: mensaje,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc2626',
+                    cancelButtonColor: '#64748b',
+                    confirmButtonText: 'Sí, eliminar',
+                    cancelButtonText: 'Cancelar'
+                }).then(function (res) {
+                    if (res.isConfirmed) {
+                        self.dataset.swalConfirmed = '1';
+                        if (self.form) {
+                            self.form.submit();
+                        } else {
+                            self.click();
+                        }
+                    }
+                });
             }
         });
     });

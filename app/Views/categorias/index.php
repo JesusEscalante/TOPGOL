@@ -84,8 +84,11 @@ declare(strict_types=1);
                                     <i class="bi bi-pencil"></i>
                                 </button>
 
-                                <!-- Eliminar (con confirmación) -->
-                                <form action="<?= url('/admin/categorias/eliminar/' . $c['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('¿Eliminar la categoría \'<?= htmlspecialchars(addslashes($c['nombre'])) ?>\'?')">
+                                <!-- Eliminar (con confirmación SweetAlert2) -->
+                                <form action="<?= url('/admin/categorias/eliminar/' . $c['id']) ?>" method="POST" class="d-inline"
+                                      data-swal-title="¿Eliminar categoría?"
+                                      data-swal-confirm="¿Eliminar la categoría &quot;<?= htmlspecialchars($c['nombre'], ENT_QUOTES) ?>&quot;?"
+                                      data-swal-btn="Sí, eliminar">
                                     <?= csrf_field() ?>
                                     <button type="submit" class="btn-mini bad" title="Eliminar" <?= (int)($c['total_productos'] ?? 0) > 0 ? 'disabled style="opacity:.4;" title="No se puede eliminar porque tiene productos asociados"' : '' ?>>
                                         <i class="bi bi-trash"></i>

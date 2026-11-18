@@ -137,15 +137,43 @@ $asistCls = static fn(string $a): string => match ($a) {
             <div class="panel-2 mb-4">
                 <form action="<?= url('/admin/reservas') ?>" method="GET" class="f-bar mb-3">
                     <input type="hidden" name="vista" value="<?= htmlspecialchars($vista) ?>">
-                    <?php if ($filtroEstado !== ''): ?><input type="hidden" name="estado" value="<?= htmlspecialchars($filtroEstado) ?>"><?php endif; ?>
-                    <?php if ($filtroPago !== ''): ?><input type="hidden" name="pago" value="<?= htmlspecialchars($filtroPago) ?>"><?php endif; ?>
-                    <?php if ($filtroAsistencia !== ''): ?><input type="hidden" name="asistencia" value="<?= htmlspecialchars($filtroAsistencia) ?>"><?php endif; ?>
                     <div class="fld" style="flex:1;min-width:200px;">
                         <label for="fq">Buscar</label>
                         <input type="text" class="form-control" id="fq" name="q" value="<?= htmlspecialchars($busqueda) ?>" placeholder="Código, cliente, teléfono o cancha...">
                     </div>
+                    <div class="fld" style="min-width:145px;">
+                        <label for="festado">Estado</label>
+                        <select class="form-select" id="festado" name="estado" onchange="this.form.submit()">
+                            <option value="">Todos</option>
+                            <option value="pendiente" <?= $filtroEstado === 'pendiente' ? 'selected' : '' ?>>Pendiente</option>
+                            <option value="confirmada" <?= $filtroEstado === 'confirmada' ? 'selected' : '' ?>>Confirmada</option>
+                            <option value="finalizada" <?= $filtroEstado === 'finalizada' ? 'selected' : '' ?>>Finalizada</option>
+                            <option value="cancelada" <?= $filtroEstado === 'cancelada' ? 'selected' : '' ?>>Cancelada</option>
+                        </select>
+                    </div>
+                    <div class="fld" style="min-width:145px;">
+                        <label for="fpago">Pago</label>
+                        <select class="form-select" id="fpago" name="pago" onchange="this.form.submit()">
+                            <option value="">Todos</option>
+                            <option value="en_revision" <?= $filtroPago === 'en_revision' ? 'selected' : '' ?>>Por verificar</option>
+                            <option value="verificado" <?= $filtroPago === 'verificado' ? 'selected' : '' ?>>Verificado</option>
+                            <option value="pendiente" <?= $filtroPago === 'pendiente' ? 'selected' : '' ?>>Pendiente</option>
+                            <option value="rechazado" <?= $filtroPago === 'rechazado' ? 'selected' : '' ?>>Rechazado</option>
+                        </select>
+                    </div>
+                    <div class="fld" style="min-width:155px;">
+                        <label for="fasist">Asistencia</label>
+                        <select class="form-select" id="fasist" name="asistencia" onchange="this.form.submit()">
+                            <option value="">Todas</option>
+                            <option value="sin_registrar" <?= $filtroAsistencia === 'sin_registrar' ? 'selected' : '' ?>>Sin registrar</option>
+                            <option value="presente" <?= $filtroAsistencia === 'presente' ? 'selected' : '' ?>>Presente</option>
+                            <option value="tardanza" <?= $filtroAsistencia === 'tardanza' ? 'selected' : '' ?>>Tardanza</option>
+                            <option value="retraso_confirmado" <?= $filtroAsistencia === 'retraso_confirmado' ? 'selected' : '' ?>>Retraso avisado</option>
+                            <option value="no_asistio" <?= $filtroAsistencia === 'no_asistio' ? 'selected' : '' ?>>No asistió</option>
+                        </select>
+                    </div>
                     <button type="submit" class="btn btn-sm fw-bold" style="background:#101c33;color:#fff;border-radius:9px;padding:9px 18px;">
-                        <i class="bi bi-search me-1"></i> Buscar
+                        <i class="bi bi-search me-1"></i> Filtrar
                     </button>
                     <a href="<?= url('/admin/reservas') ?>" class="btn btn-sm btn-outline-secondary" style="border-radius:9px;padding:9px 16px;">Limpiar</a>
                 </form>

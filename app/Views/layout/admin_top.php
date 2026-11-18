@@ -60,6 +60,7 @@ $nav = [
     ]],
     ['key' => 'reportes',   'label' => 'Reportes',   'ico' => 'bi-bar-chart-line', 'href' => url('/admin/reportes'), 'tabs' => []],
     ['key' => 'canchas',    'label' => 'Canchas',    'ico' => 'bi-grid',           'href' => url('/canchas'), 'tabs' => []],
+    ['key' => 'usuarios',   'label' => 'Usuarios',   'ico' => 'bi-people',         'href' => url('/admin/usuarios'), 'tabs' => []],
 ];
 
 // Pantalla (pestaña) activa según la ruta; el valor que manda la vista ($adminMenu) es el respaldo.
@@ -69,7 +70,7 @@ $tabPorRutaAdm = [
     '/admin/caja' => 'caja', '/admin/pagos' => 'porverificar', '/admin/pago' => 'porverificar',
     '/admin/ventas/pos' => 'pos', '/admin/ventas' => 'ventas',
     '/admin/productos' => 'productos', '/admin/categorias' => 'categorias', '/admin/inventario' => 'inventario',
-    '/admin/reportes' => 'reportes', '/canchas' => 'canchas',
+    '/admin/reportes' => 'reportes', '/canchas' => 'canchas', '/admin/usuarios' => 'usuarios',
 ];
 $tabActivaAdm = $adminMenuActivo;
 $mejorLargoAdm = 0;
@@ -105,6 +106,31 @@ foreach ($nav as $itemNav) {
     <title><?= htmlspecialchars($titulo ?? 'Panel Administrador - TOP GOL') ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+    document.addEventListener('submit', function (e) {
+        var form = e.target;
+        if (!form || !form.getAttribute) return;
+        var msg = form.getAttribute('data-swal-confirm');
+        if (!msg || form.dataset.swalConfirmed === '1') return;
+        e.preventDefault();
+        Swal.fire({
+            title: form.getAttribute('data-swal-title') || '¿Estás seguro?',
+            text: msg,
+            icon: form.getAttribute('data-swal-icon') || 'warning',
+            showCancelButton: true,
+            confirmButtonColor: form.getAttribute('data-swal-color') || '#dc2626',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: form.getAttribute('data-swal-btn') || 'Sí, continuar',
+            cancelButtonText: 'Cancelar'
+        }).then(function (res) {
+            if (res.isConfirmed) {
+                form.dataset.swalConfirmed = '1';
+                form.submit();
+            }
+        });
+    });
+    </script>
 </head>
 <body class="adm-standalone">
 
@@ -371,14 +397,18 @@ foreach ($nav as $itemNav) {
             };
 
             function showToast(n){
-                var wrap=document.getElementById('admToastWrap');
-                if(!wrap) return;
-                var el=document.createElement('div');
-                el.className='toast show align-items-center text-bg-success border-0 mb-2';
-                el.setAttribute('role','alert');
-                el.innerHTML='<div class="d-flex"><div class="toast-body" style="font-size:.82rem;"><strong>'+esc(n.titulo)+'</strong><br>'+esc(n.mensaje)+'</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>';
-                wrap.appendChild(el);
-                setTimeout(function(){ el.remove(); }, 5000);
+                if(typeof Swal !== 'undefined'){
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'info',
+                        title: n.titulo || 'Nueva notificación',
+                        text: n.mensaje || '',
+                        showConfirmButton: false,
+                        timer: 5000,
+                        timerProgressBar: true
+                    });
+                }
                 try{ var a=new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA=='); a.play().catch(function(){}); }catch(e){}
             }
 

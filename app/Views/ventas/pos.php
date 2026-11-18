@@ -199,7 +199,12 @@ function posAgregarItem(id) {
 
     var actualEnCarrito = posCarrito[id] ? posCarrito[id].cantidad : 0;
     if (actualEnCarrito >= p.stock) {
-        alert('Stock máximo disponible alcanzado para ' + p.nombre + ' (' + p.stock + ' unidades).');
+        Swal.fire({
+            title: 'Stock máximo alcanzado',
+            text: 'Stock máximo disponible alcanzado para ' + p.nombre + ' (' + p.stock + ' unidades).',
+            icon: 'warning',
+            confirmButtonColor: '#1a7a3a'
+        });
         return;
     }
 
@@ -225,7 +230,12 @@ function posModificarCantidad(id, delta) {
     if (nuevaCant <= 0) {
         delete posCarrito[id];
     } else if (nuevaCant > posCarrito[id].stockMax) {
-        alert('Stock insuficiente. Máximo disponible: ' + posCarrito[id].stockMax);
+        Swal.fire({
+            title: 'Stock insuficiente',
+            text: 'Stock insuficiente. Máximo disponible: ' + posCarrito[id].stockMax,
+            icon: 'warning',
+            confirmButtonColor: '#1a7a3a'
+        });
     } else {
         posCarrito[id].cantidad = nuevaCant;
     }
@@ -319,8 +329,13 @@ function posValidarVenta(e) {
     var items = JSON.parse(itemsJson || '[]');
 
     if (items.length === 0) {
-        alert('Agrega al menos un producto antes de confirmar la venta.');
         e.preventDefault();
+        Swal.fire({
+            title: 'Carrito vacío',
+            text: 'Agrega al menos un producto antes de confirmar la venta.',
+            icon: 'warning',
+            confirmButtonColor: '#1a7a3a'
+        });
         return false;
     }
 

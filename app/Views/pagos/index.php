@@ -309,7 +309,12 @@ $titulosTab = [
                             </td>
                             <td class="td-acc" data-label="Acciones">
                                 <div class="d-flex align-items-center gap-2 flex-wrap">
-                                    <form action="<?= url('/admin/pago/verificar/' . $r['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('¿Verificar el comprobante de la reserva #<?= (int)$r['id'] ?>?\n\nAl verificar, la reserva queda confirmada.');">
+                                    <form action="<?= url('/admin/pago/verificar/' . $r['id']) ?>" method="POST" class="d-inline"
+                                          data-swal-title="¿Verificar comprobante?"
+                                          data-swal-icon="question"
+                                          data-swal-color="#1a7a3a"
+                                          data-swal-confirm="¿Verificar el comprobante de la reserva #<?= (int)$r['id'] ?>? Al verificar, la reserva queda confirmada."
+                                          data-swal-btn="Sí, verificar">
                                         <?= csrf_field() ?>
                                         <?php if ($r['is_grupo']): ?><input type="hidden" name="evento_grupo" value="<?= htmlspecialchars((string)$r['evento_grupo']) ?>"><?php endif; ?>
                                         <button type="submit" class="btn-accion principal" title="Confirmar el comprobante: la reserva queda confirmada"><i class="bi bi-check-lg"></i> Verificar</button>
@@ -556,9 +561,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (btnRevisar) {
         btnRevisar.addEventListener('click', function() {
             var m = parseFloat(inputMonto.value || '0');
-            if (!(m > 0)) { alert('El monto a cobrar debe ser mayor a S/ 0.00'); return; }
+            if (!(m > 0)) {
+                Swal.fire({ title: 'Monto inválido', text: 'El monto a cobrar debe ser mayor a S/ 0.00', icon: 'warning', confirmButtonColor: '#1a7a3a' });
+                return;
+            }
             if (m > (saldoMaximo + 0.001)) {
-                alert('El monto (S/ ' + m.toFixed(2) + ') no puede superar el saldo pendiente (S/ ' + saldoMaximo.toFixed(2) + ').');
+                Swal.fire({ title: 'Monto inválido', text: 'El monto (S/ ' + m.toFixed(2) + ') no puede superar el saldo pendiente (S/ ' + saldoMaximo.toFixed(2) + ').', icon: 'warning', confirmButtonColor: '#1a7a3a' });
                 return;
             }
             var metodo = formCobro.querySelector('input[name="metodo_pago"]:checked');

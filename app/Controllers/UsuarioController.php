@@ -140,10 +140,25 @@ class UsuarioController extends Controller {
         $estadisticas['total_canchas'] = $modeloCancha->contarCanchas();
         $estadisticas['total_usuarios'] = $modeloUsuario->contarUsuarios();
 
+        // 8. Indicadores de la semana (lunes a domingo de la fecha consultada)
+        $repReservasSemana = $modeloReserva->obtenerReporteReservas($lunes, $domingo, [], $incluirDemo);
+        $repIngresosSemana = $modeloPago->obtenerReporteIngresos($lunes, $domingo, $incluirDemo);
+        $resumenSemana = [
+            'total_reservas'   => (int)($repReservasSemana['total_reservas'] ?? 0),
+            'confirmadas'      => (int)($repReservasSemana['confirmadas'] ?? 0),
+            'pendientes'       => (int)($repReservasSemana['pendientes'] ?? 0),
+            'horas_cancha'     => (float)($repReservasSemana['horas_cancha'] ?? 0.0),
+            'ingresos_totales' => (float)($repIngresosSemana['total_ingresos'] ?? 0.0),
+            'canchas_total'    => (float)($repIngresosSemana['canchas_total'] ?? 0.0),
+            'productos_total'  => (float)($repIngresosSemana['productos_total'] ?? 0.0),
+            'saldo_pendiente'  => (float)($repIngresosSemana['saldos_pendientes'] ?? 0.0),
+        ];
+
         $this->view('usuarios/dashboard', [
             'titulo'                 => 'Dashboard Administrativo - ' . APP_NAME,
             'adminMenu'              => 'dashboard',
             'estadisticas'           => $estadisticas,
+            'resumenSemana'          => $resumenSemana,
             'canchas'                => $canchas,
             'hoy'                    => $hoy,
             'hoyReal'                => $hoyReal,
@@ -304,8 +319,9 @@ class UsuarioController extends Controller {
         $usuarios = $modeloUsuario->obtenerTodos();
 
         $this->view('usuarios/index', [
-            'titulo'   => 'Gestión de Usuarios - ' . APP_NAME,
-            'usuarios' => $usuarios
-        ]);
+            'titulo'    => 'Gestión de Usuarios - ' . APP_NAME,
+            'adminMenu' => 'usuarios',
+            'usuarios'  => $usuarios
+        ], false);
     }
 }

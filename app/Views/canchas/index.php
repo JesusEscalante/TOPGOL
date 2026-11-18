@@ -180,7 +180,10 @@ $tipoFormateado = $tipoLabels[$filtros['tipo']] ?? '';
                                             </a>
                                         </div>
                                         <div class="col-md-6 d-flex gap-2 mt-1">
-                                            <form action="<?= url('/cancha/eliminar/' . $cancha['id']) ?>" method="POST" class="w-100" onsubmit="return confirm('¿Seguro que quieres eliminar la cancha &quot;<?= htmlspecialchars($cancha['nombre'], ENT_QUOTES) ?>&quot;? Esta acción no se puede deshacer.');">
+                                            <form action="<?= url('/cancha/eliminar/' . $cancha['id']) ?>" method="POST" class="w-100"
+                                                  data-swal-title="¿Eliminar cancha?"
+                                                  data-swal-confirm="¿Seguro que quieres eliminar la cancha &quot;<?= htmlspecialchars($cancha['nombre'], ENT_QUOTES) ?>&quot;? Esta acción no se puede deshacer."
+                                                  data-swal-btn="Sí, eliminar">
                                                 <?= csrf_field() ?>
                                                 <button type="submit" class="btn btn-sm btn-outline-danger w-100" style="border-radius:7px;font-size:0.75rem;font-weight:600;">
                                                     <i class="bi bi-trash me-1"></i>Eliminar

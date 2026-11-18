@@ -147,6 +147,42 @@ $horaActualSel = substr((string)$reserva['hora_inicio'], 0, 5);
         <?php else: ?>
             <div class="alert alert-light border mb-0" style="font-size:.9rem;">Esta reserva está <strong><?= $estado === 'cancelada' ? 'cancelada' : 'finalizada' ?></strong>: ya no se pueden registrar acciones.</div>
         <?php endif; ?>
+
+        <!-- Registro de contacto previo / seguimiento con el cliente -->
+        <div class="mt-3 pt-3" style="border-top:1px solid #eef2f7;">
+            <form action="<?= url('/admin/reserva/contacto/' . $id) ?>" method="POST" class="d-flex flex-wrap align-items-end gap-2 da-once">
+                <?= csrf_field() ?>
+                <div style="flex:1; min-width:220px;">
+                    <label for="contactoResultado" class="form-label small fw-bold mb-1">
+                        <i class="bi bi-whatsapp text-success me-1"></i> Registrar resultado de contacto al cliente
+                    </label>
+                    <select id="contactoResultado" name="contacto_resultado" class="form-select form-select-sm" required>
+                        <option value="confirmada" <?= ($reserva['contacto_resultado'] ?? '') === 'confirmada' ? 'selected' : '' ?>>Confirmó que asistirá a tiempo</option>
+                        <option value="retraso" <?= ($reserva['contacto_resultado'] ?? '') === 'retraso' ? 'selected' : '' ?>>Avisó que llegará con retraso</option>
+                        <option value="no_contesta" <?= ($reserva['contacto_resultado'] ?? '') === 'no_contesta' ? 'selected' : '' ?>>No contesta llamada / mensajes</option>
+                        <option value="solicita_reprogramacion" <?= ($reserva['contacto_resultado'] ?? '') === 'solicita_reprogramacion' ? 'selected' : '' ?>>Solicita reprogramación</option>
+                    </select>
+                </div>
+                <button type="submit" class="da-btn" style="min-height:34px; font-size:.85rem;"><i class="bi bi-check2-circle me-1"></i> Guardar contacto</button>
+                <?php if ($waCliente !== '#'): ?>
+                    <a href="<?= $waCliente ?>" target="_blank" rel="noopener" class="da-btn wa" style="min-height:34px; font-size:.85rem;"><i class="bi bi-whatsapp me-1"></i> Abrir WhatsApp</a>
+                <?php endif; ?>
+            </form>
+            <?php if (!empty($reserva['contacto_realizado_at'])): ?>
+                <?php
+                    $resContLbl = match ((string)($reserva['contacto_resultado'] ?? '')) {
+                        'confirmada' => 'Confirmó que asistirá a tiempo',
+                        'retraso' => 'Avisó que llegará con retraso',
+                        'no_contesta' => 'No contesta llamada / mensajes',
+                        'solicita_reprogramacion' => 'Solicita reprogramación',
+                        default => (string)($reserva['contacto_resultado'] ?? 'Contacto realizado'),
+                    };
+                ?>
+                <div class="small text-muted mt-2">
+                    <i class="bi bi-clock-history me-1"></i> Último contacto registrado: <strong><?= $fmtFechaHora((string)$reserva['contacto_realizado_at']) ?></strong> · <?= htmlspecialchars($resContLbl) ?>
+                </div>
+            <?php endif; ?>
+        </div>
     </div>
 
     <!-- Pagos registrados -->

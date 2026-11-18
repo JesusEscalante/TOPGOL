@@ -78,7 +78,9 @@ class Reserva extends Model {
                        c.nombre AS cancha_nombre,
                        c.tipo AS cancha_tipo,
                        c.techada AS cancha_techada,
-                       c.iluminacion AS cancha_iluminacion
+                       c.iluminacion AS cancha_iluminacion,
+                       COALESCE((SELECT SUM(p.monto) FROM pagos p WHERE p.reserva_id = r.id AND p.estado = 'verificado'), 0) AS total_pagado,
+                       GREATEST(0, r.total_pago - COALESCE((SELECT SUM(p.monto) FROM pagos p WHERE p.reserva_id = r.id AND p.estado = 'verificado'), 0)) AS saldo_pendiente
                 FROM {$this->tabla} r
                 INNER JOIN canchas c ON r.cancha_id = c.id
                 WHERE r.usuario_id = ?

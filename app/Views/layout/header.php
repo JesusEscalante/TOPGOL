@@ -43,6 +43,31 @@ $navActive = static function (string ...$rutas) use ($rutaActual): string {
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,600;0,700;0,800;0,900;1,700;1,800;1,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?= url('assets/css/style.css') ?>">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+    document.addEventListener('submit', function (e) {
+        var form = e.target;
+        if (!form || !form.getAttribute) return;
+        var msg = form.getAttribute('data-swal-confirm');
+        if (!msg || form.dataset.swalConfirmed === '1') return;
+        e.preventDefault();
+        Swal.fire({
+            title: form.getAttribute('data-swal-title') || '¿Estás seguro?',
+            text: msg,
+            icon: form.getAttribute('data-swal-icon') || 'warning',
+            showCancelButton: true,
+            confirmButtonColor: form.getAttribute('data-swal-color') || '#dc2626',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: form.getAttribute('data-swal-btn') || 'Sí, continuar',
+            cancelButtonText: 'Cancelar'
+        }).then(function (res) {
+            if (res.isConfirmed) {
+                form.dataset.swalConfirmed = '1';
+                form.submit();
+            }
+        });
+    });
+    </script>
     <style>
         /* Menú con más enlaces: que no se corten los nombres en pantallas medianas */
         .navbar-topgol .navbar-nav .nav-link { white-space: nowrap; }
@@ -149,13 +174,8 @@ $navActive = static function (string ...$rutas) use ($rutaActual): string {
     </div>
 </nav>
 
-<!-- Flash Messages debajo del navbar -->
-<?php $flashHtml = renderFlashMessages(); ?>
-<?php if ($flashHtml): ?>
-<div class="flash-container container">
-    <?= $flashHtml ?>
-</div>
-<?php endif; ?>
+<!-- Flash Messages (SweetAlert2) -->
+<?= renderFlashMessages() ?>
 
 <!-- Main -->
 <main class="main-content">

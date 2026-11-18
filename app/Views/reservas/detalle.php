@@ -304,7 +304,10 @@ $puedeCancelar = in_array($estado, ['pendiente', 'confirmada'], true) && ($reser
                             <td class="text-end">
                                 <a href="<?= url('/mis-reservas/' . $o['id']) ?>" class="btn-ver">Ver detalle</a>
                                 <?php if ($oPuedeCancelar): ?>
-                                    <form action="<?= url('/reserva/cancelar/' . $o['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('¿Seguro que deseas cancelar la reserva #<?= (int)$o['id'] ?>?');">
+                                    <form action="<?= url('/reserva/cancelar/' . $o['id']) ?>" method="POST" class="d-inline"
+                                          data-swal-title="¿Cancelar reserva?"
+                                          data-swal-confirm="¿Seguro que deseas cancelar la reserva #<?= (int)$o['id'] ?>?"
+                                          data-swal-btn="Sí, cancelar">
                                         <?= csrf_field() ?>
                                         <button type="submit" class="btn-ver danger" style="border:0; background:none;">Cancelar</button>
                                     </form>
