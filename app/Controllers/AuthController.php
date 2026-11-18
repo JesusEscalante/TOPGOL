@@ -6,6 +6,7 @@ namespace App\Controllers;
 use App\Core\Controller;
 use App\Models\Usuario;
 use App\Services\GoogleOAuth;
+use App\Services\Mailer;
 
 /**
  * ====================================================================
@@ -297,5 +298,130 @@ class AuthController extends Controller {
         } else {
             $this->redirect('/mis-reservas');
         }
+    }
+
+    /**
+     * Muestra el formulario para solicitar recuperación de contraseña por correo (RF25)
+     */
+    public function showForgotPassword(): void {
+        $this->requireGuest();
+        $devResetUrl = $_SESSION['dev_reset_url'] ?? null;
+        unset($_SESSION['dev_reset_url']);
+
+        $this->view('auth/forgot-password', [
+            'titulo'      => 'Recuperar Contraseña - ' . APP_NAME,
+            'devResetUrl' => $devResetUrl
+        ]);
+    }
+
+    /**
+     * Procesa la solicitud de envío de enlace de recuperación por correo (RF25)
+     */
+    public function sendResetLink(): void {
+        $this->requireGuest();
+        $this->validateCsrf();
+
+        $post = $this->sanitizePost();
+        $email = strtolower(trim($post['email'] ?? ''));
+
+        if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            sessionFlash('error', 'Por favor ingresa un correo electrónico válido.', 'danger');
+            $this->redirect('/forgot-password');
+        }
+
+        $modeloUsuario = new Usuario();
+        $usuario = $modeloUsuario->obtenerPorEmail($email);
+        $expiraMin = defined('PASSWORD_RESET_EXPIRA_MINUTOS') ? (int)PASSWORD_RESET_EXPIRA_MINUTOS : 30;
+
+        if ($usuario !== null) {
+            $token = $modeloUsuario->crearTokenRecuperacion($email);
+            $resetUrl = url('/reset-password/' . $token);
+
+            $mailer = new Mailer();
+            $mailer->enviarRecuperacionPassword($email, (string)$usuario['nombre'], $resetUrl, $expiraMin);
+
+            // En entorno local de desarrollo sin servidor SMTP configurado, exponer enlace de prueba
+            if (defined('APP_ENV') && APP_ENV === 'development' && !$mailer->isSmtpConfigured()) {
+                $_SESSION['dev_reset_url'] = $resetUrl;
+            }
+        }
+
+        sessionFlash(
+            'success',
+            "Si el correo está registrado en nuestro sistema, recibirás un enlace válido por {$expiraMin} minutos para restablecer tu contraseña.",
+            'success'
+        );
+        $this->redirect('/forgot-password');
+    }
+
+    /**
+     * Muestra el formulario para definir una nueva contraseña usando el token del correo (RF25)
+     */
+    public function showResetPassword(string $token = ''): void {
+        $this->requireGuest();
+
+        $modeloUsuario = new Usuario();
+        $datosToken = $modeloUsuario->validarTokenRecuperacion($token);
+
+        if ($datosToken === null) {
+            sessionFlash('error', 'El enlace de recuperación no es válido o ha expirado. Solicita uno nuevo.', 'danger');
+            $this->redirect('/forgot-password');
+        }
+
+        $this->view('auth/reset-password', [
+            'titulo' => 'Restablecer Contraseña - ' . APP_NAME,
+            'token'  => $token,
+            'email'  => (string)$datosToken['email'],
+            'nombre' => (string)$datosToken['nombre']
+        ]);
+    }
+
+    /**
+     * Guarda la nueva contraseña e invalida el token de recuperación (RF25)
+     */
+    public function resetPassword(): void {
+        $this->requireGuest();
+        $this->validateCsrf();
+
+        $post = $this->sanitizePost();
+        $token = trim((string)($post['token'] ?? ''));
+        $password = (string)($post['password'] ?? '');
+        $passwordConfirm = (string)($post['password_confirm'] ?? '');
+
+        if ($token === '') {
+            sessionFlash('error', 'Solicitud de restablecimiento inválida.', 'danger');
+            $this->redirect('/forgot-password');
+        }
+
+        $modeloUsuario = new Usuario();
+        $datosToken = $modeloUsuario->validarTokenRecuperacion($token);
+
+        if ($datosToken === null) {
+            sessionFlash('error', 'El enlace de recuperación no es válido o ha expirado. Solicita uno nuevo.', 'danger');
+            $this->redirect('/forgot-password');
+        }
+
+        if (strlen($password) < 6) {
+            sessionFlash('error', 'La nueva contraseña debe tener un mínimo de 6 caracteres.', 'danger');
+            $this->redirect('/reset-password/' . urlencode($token));
+        }
+
+        if ($password !== $passwordConfirm) {
+            sessionFlash('error', 'Las contraseñas ingresadas no coinciden.', 'danger');
+            $this->redirect('/reset-password/' . urlencode($token));
+        }
+
+        $actualizado = $modeloUsuario->cambiarPassword((int)$datosToken['id'], $password);
+        if (!$actualizado) {
+            sessionFlash('error', 'No se pudo actualizar la contraseña. Intenta nuevamente.', 'danger');
+            $this->redirect('/reset-password/' . urlencode($token));
+        }
+
+        // Marcar token como usado y desbloquear intentos fallidos de login si los hubiera
+        $modeloUsuario->consumirTokenRecuperacion($token);
+        $modeloUsuario->limpiarIntentos((string)$datosToken['email']);
+
+        sessionFlash('success', '¡Tu contraseña ha sido restablecida con éxito! Ahora puedes iniciar sesión.', 'success');
+        $this->redirect('/login');
     }
 }

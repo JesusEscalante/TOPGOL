@@ -164,6 +164,12 @@ $router->get('/register', 'AuthController@showRegister', ['guest']);
 $router->post('/register', 'AuthController@register', ['guest']);
 $router->get('/logout', 'AuthController@logout', ['auth']);
 
+// Recuperación de contraseña mediante correo electrónico (RF25)
+$router->get('/forgot-password', 'AuthController@showForgotPassword', ['guest']);
+$router->post('/forgot-password', 'AuthController@sendResetLink', ['guest']);
+$router->get('/reset-password/{token}', 'AuthController@showResetPassword', ['guest']);
+$router->post('/reset-password', 'AuthController@resetPassword', ['guest']);
+
 // Google OAuth
 $router->get('/auth/google', 'AuthController@googleLogin', ['guest']);
 $router->get('/auth/google/callback', 'AuthController@googleCallback', ['guest']);

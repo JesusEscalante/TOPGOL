@@ -212,4 +212,68 @@ class Usuario extends Model {
         $sql = "UPDATE {$this->tabla} SET google_id = ?, avatar = COALESCE(?, avatar), updated_at = NOW() WHERE id = ?";
         return $this->execute($sql, [$googleId, $avatar, $id]);
     }
+
+    /**
+     * Genera un token seguro de recuperación de contraseña (RF25).
+     * Invalida tokens previos pendientes para el mismo correo y almacena el hash SHA-256.
+     *
+     * @param string $email
+     * @return string Token en texto plano que se enviará por correo
+     */
+    public function crearTokenRecuperacion(string $email): string {
+        $email = strtolower(trim($email));
+        $minutos = defined('PASSWORD_RESET_EXPIRA_MINUTOS') ? (int)PASSWORD_RESET_EXPIRA_MINUTOS : 30;
+
+        // Invalidar solicitudes previas sin usar de este correo o ya vencidas
+        $this->execute("DELETE FROM password_resets WHERE email = ? OR expires_at <= NOW()", [$email]);
+
+        $tokenPlano = bin2hex(random_bytes(32));
+        $tokenHash = hash('sha256', $tokenPlano);
+
+        $this->execute(
+            "INSERT INTO password_resets (email, token_hash, expires_at, created_at)
+             VALUES (?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE), NOW())",
+            [$email, $tokenHash, $minutos]
+        );
+
+        return $tokenPlano;
+    }
+
+    /**
+     * Verifica si un token de recuperación es válido, no ha sido usado y no ha expirado.
+     *
+     * @param string $tokenPlano
+     * @return array<string, mixed>|null Datos del usuario asociado si el token es válido
+     */
+    public function validarTokenRecuperacion(string $tokenPlano): ?array {
+        $tokenPlano = trim($tokenPlano);
+        if ($tokenPlano === '' || strlen($tokenPlano) !== 64 || !ctype_xdigit($tokenPlano)) {
+            return null;
+        }
+
+        $tokenHash = hash('sha256', $tokenPlano);
+        $sql = "SELECT u.id, u.nombre, u.email, u.rol, pr.id AS reset_id, pr.expires_at
+                FROM password_resets pr
+                INNER JOIN {$this->tabla} u ON u.email = pr.email
+                WHERE pr.token_hash = ?
+                  AND pr.used_at IS NULL
+                  AND pr.expires_at > NOW()
+                LIMIT 1";
+
+        return $this->selectOne($sql, [$tokenHash]);
+    }
+
+    /**
+     * Marca un token de recuperación como utilizado e invalida otros tokens pendientes del correo.
+     *
+     * @param string $tokenPlano
+     * @return bool
+     */
+    public function consumirTokenRecuperacion(string $tokenPlano): bool {
+        $tokenHash = hash('sha256', trim($tokenPlano));
+        return $this->execute(
+            "UPDATE password_resets SET used_at = NOW() WHERE token_hash = ? AND used_at IS NULL",
+            [$tokenHash]
+        );
+    }
 }

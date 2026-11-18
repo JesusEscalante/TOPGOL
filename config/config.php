@@ -75,6 +75,9 @@ define('TOLERANCIA_MINUTOS', 10);
 define('LOGIN_MAX_INTENTOS', 5);
 define('LOGIN_BLOQUEO_MINUTOS', 5);
 
+// Tiempo de expiración del enlace de recuperación de contraseña por correo (minutos).
+define('PASSWORD_RESET_EXPIRA_MINUTOS', 30);
+
 // Vencimiento de la reserva pendiente: minutos que el cliente tiene para subir el
 // comprobante antes de que la reserva se cancele sola y libere el horario.
 // Es la UNICA fuente del valor: la usa Reserva::expirarPendientes().
@@ -108,3 +111,13 @@ define('GOOGLE_REDIRECT_URI', $_ENV['GOOGLE_REDIRECT_URI'] ?? URL_BASE . '/auth/
 define('TELEGRAM_ENABLED', filter_var($_ENV['TELEGRAM_ENABLED'] ?? false, FILTER_VALIDATE_BOOLEAN));
 define('TELEGRAM_USER', $_ENV['TELEGRAM_USER'] ?? '');
 define('TELEGRAM_DEBUG', filter_var($_ENV['TELEGRAM_DEBUG'] ?? false, FILTER_VALIDATE_BOOLEAN));
+
+// Configuracion de Correo Electronico (SMTP / Mail)
+define('MAIL_DRIVER', strtolower(trim($_ENV['MAIL_DRIVER'] ?? 'smtp')));
+define('MAIL_HOST', trim($_ENV['MAIL_HOST'] ?? 'smtp.gmail.com'));
+define('MAIL_PORT', (int)($_ENV['MAIL_PORT'] ?? 587));
+define('MAIL_USERNAME', trim($_ENV['MAIL_USERNAME'] ?? ''));
+define('MAIL_PASSWORD', trim($_ENV['MAIL_PASSWORD'] ?? ''));
+define('MAIL_ENCRYPTION', strtolower(trim($_ENV['MAIL_ENCRYPTION'] ?? 'tls')));
+define('MAIL_FROM_ADDRESS', trim($_ENV['MAIL_FROM_ADDRESS'] ?? 'no-reply@topgol.com'));
+define('MAIL_FROM_NAME', trim($_ENV['MAIL_FROM_NAME'] ?? APP_NAME));

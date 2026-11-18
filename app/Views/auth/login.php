@@ -30,7 +30,12 @@ declare(strict_types=1);
 
                         <!-- Contraseña -->
                         <div class="mb-4">
-                            <label for="password" class="form-label fw-semibold">Contraseña</label>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label for="password" class="form-label fw-semibold mb-0">Contraseña</label>
+                                <a href="<?= url('/forgot-password') ?>" class="text-decoration-none small text-success fw-semibold">
+                                    ¿Olvidaste tu contraseña?
+                                </a>
+                            </div>
                             <div class="input-group">
                                 <span class="input-group-text bg-light"><i class="bi bi-lock"></i></span>
                                 <input type="password" class="form-control" id="password" name="password" placeholder="Tu contraseña" required>

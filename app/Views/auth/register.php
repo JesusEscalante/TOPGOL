@@ -6,12 +6,12 @@ declare(strict_types=1);
     <div class="row justify-content-center">
         <div class="col-md-7 col-lg-6">
             <div class="card shadow border-0 rounded-4 overflow-hidden">
-                <div class="bg-topgol-dark text-center p-4">
+                <div class="bg-topgol-dark text-center p-4 pb-2">
                     <div class="brand-ball mb-2">
-                        <i class="bi bi-dribbble text-gold fs-1"></i>
+                        <i class="bi bi-dribbble text-success fs-1"></i>
                     </div>
-                    <h3 class="fw-bold text-white mb-1">Únete a TOP <span class="text-gold">GOL</span></h3>
-                    <p class="text-light opacity-75 small mb-0">Crea tu cuenta gratis y reserva tus canchas al instante</p>
+                    <h3 class="fw-bold mb-1">Únete a TOP <span class="text-success">GOL</span></h3>
+                    <p class="text-muted small mb-0">Crea tu cuenta gratis y reserva tus canchas al instante</p>
                 </div>
 
                 <div class="card-body p-4 p-md-5 bg-white">
