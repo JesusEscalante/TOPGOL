@@ -7,6 +7,7 @@ use App\Core\Controller;
 use App\Models\Cancha;
 use App\Models\Notificacion;
 use App\Models\Reserva;
+use App\Services\Mailer;
 use App\Services\TelegramNotifier;
 
 /**
@@ -440,6 +441,12 @@ class ReservaController extends Controller {
             // Notificación interna tiempo real para admins (al detalle)
             (new Notificacion())->notificarAdmins('reserva', "Nueva reserva #{$idReserva}", "{$nombreTelegram} reservó {$cancha['nombre']} el {$fecha} {$horaInicioNormalizada}", url('/mis-reservas/' . $idReserva));
 
+            // Notificación automática por correo electrónico al cliente (RF26)
+            $resumenCorreo = $modeloReserva->obtenerResumenNotificacion($idReserva);
+            if ($resumenCorreo !== null) {
+                (new Mailer())->notificarReservaRecibida($resumenCorreo);
+            }
+
             if ($comprobante !== null) {
                 sessionFlash('success', "¡Reserva #{$idReserva} registrada! Recibimos tu comprobante ({$metodoPago}) y está en revisión. Total: " . formatPrice($totalPago), 'success');
             } else {
@@ -593,6 +600,16 @@ class ReservaController extends Controller {
                 $modeloReserva->actualizarEstado($idReserva, 'confirmada');
             } elseif ($nuevoEstado === 'rechazado') {
                 $modeloReserva->actualizarEstado($idReserva, 'cancelada');
+            }
+        }
+        if ($ok && in_array($nuevoEstado, ['verificado', 'rechazado'], true)) {
+            $resumenPago = $modeloReserva->obtenerResumenNotificacion($idReserva, !empty($grupo) ? (string)$grupo : null);
+            if ($resumenPago !== null) {
+                if ($nuevoEstado === 'verificado') {
+                    (new Mailer())->notificarPagoVerificado($resumenPago);
+                } else {
+                    (new Mailer())->notificarPagoRechazado($resumenPago);
+                }
             }
         }
         if ($this->isAjax()) {
@@ -1198,6 +1215,12 @@ class ReservaController extends Controller {
         ]);
         (new Notificacion())->notificarAdmins('evento', "Nuevo evento (" . count($creados) . " canchas)", $fecha . ' ' . $items[0]['hora_ini'] . ' · ' . $listaCanchas, url('/mis-reservas/' . (int)$creados[0]));
 
+        // Notificación automática por correo electrónico al cliente (RF26)
+        $resumenEventoCorreo = $modeloReserva->obtenerResumenNotificacion((int)$creados[0], $grupo);
+        if ($resumenEventoCorreo !== null) {
+            (new Mailer())->notificarReservaRecibida($resumenEventoCorreo);
+        }
+
         sessionFlash('success', "¡Evento registrado con " . count($creados) . " canchas el {$fecha}! Total: " . formatPrice($totalGeneral) . " · Adelanto: " . formatPrice($adelantoTotal) . " (S/ 20 x cancha).", 'success');
         if ($esAdmin) {
             $this->redirect('/admin/reservas');
@@ -1301,6 +1324,11 @@ class ReservaController extends Controller {
         $cancelado = $modeloReserva->cancelar($idReserva, $usuarioId, isAdmin());
 
         if ($cancelado) {
+            $resumenCancel = $modeloReserva->obtenerResumenNotificacion($idReserva);
+            if ($resumenCancel !== null) {
+                $motivoCancel = isAdmin() ? 'Cancelada por el administrador del complejo.' : 'Cancelada a solicitud del cliente.';
+                (new Mailer())->notificarEstadoReserva($resumenCancel, 'cancelada', $motivoCancel);
+            }
             sessionFlash('success', "La reserva #{$idReserva} ha sido cancelada.", 'info');
         } else {
             sessionFlash('error', 'No se pudo cancelar la reserva. Es posible que ya haya finalizado o esté cancelada.', 'warning');
@@ -1351,6 +1379,13 @@ class ReservaController extends Controller {
         $motivoCancelacion = trim((string)($_POST['motivo'] ?? ''));
         if ($nuevoEstado === 'cancelada' && $motivoCancelacion !== '') {
             $modeloReserva->guardarMotivoCancelacion($idReserva, !empty($grupo) ? (string)$grupo : null, $motivoCancelacion, (int)($_SESSION['usuario_id'] ?? 0));
+        }
+
+        if ($okEstado) {
+            $resumenEstado = $modeloReserva->obtenerResumenNotificacion($idReserva, !empty($grupo) ? (string)$grupo : null);
+            if ($resumenEstado !== null) {
+                (new Mailer())->notificarEstadoReserva($resumenEstado, $nuevoEstado, $motivoCancelacion);
+            }
         }
 
         if ($this->isAjax()) {
@@ -1491,6 +1526,7 @@ class ReservaController extends Controller {
         $adminId = $admin ? (int)$admin['id'] : 1;
 
         $modeloReserva = new Reserva();
+        $reservaAnterior = $modeloReserva->obtenerPorId($reservaId);
         $res = $modeloReserva->reprogramar(
             $reservaId,
             $nuevaCanchaId,
@@ -1508,6 +1544,11 @@ class ReservaController extends Controller {
             }
             sessionFlash('error', $res['error'] ?? 'Error al reprogramar la reserva.', 'danger');
             $this->redirect($_SERVER['HTTP_REFERER'] ?? '/mis-reservas/' . $reservaId);
+        }
+
+        $resumenNuevo = $modeloReserva->obtenerResumenNotificacion($reservaId);
+        if ($resumenNuevo !== null && $reservaAnterior !== null) {
+            (new Mailer())->notificarReprogramacion($resumenNuevo, $reservaAnterior, $motivo);
         }
 
         if ($this->isAjax()) {

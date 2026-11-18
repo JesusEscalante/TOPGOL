@@ -7,6 +7,7 @@ use App\Core\Controller;
 use App\Models\Cancha;
 use App\Models\Espacio;
 use App\Models\Notificacion;
+use App\Services\Mailer;
 use App\Services\TelegramNotifier;
 
 class EspacioController extends Controller {
@@ -163,6 +164,12 @@ class EspacioController extends Controller {
         ]);
         (new Notificacion())->notificarAdmins('espacio', "Nueva solicitud de cumpleaños/reunión #{$id}", "{$nombre} · {$fecha} " . substr($horaIni, 0, 5) . ' - ' . substr($horaFin, 0, 5), url('/admin/espacios'));
 
+        // Notificación automática por correo electrónico al cliente (RF26)
+        $solicitudCreada = $modelo->obtenerPorId((int)$id);
+        if ($solicitudCreada !== null) {
+            (new Mailer())->notificarSolicitudEspacio($solicitudCreada);
+        }
+
         sessionFlash('success', 'Tu solicitud de espacio ha sido enviada. Total estimado (provisional): ' . formatPrice($calculo['total']) . '. Nos pondremos en contacto contigo para confirmar disponibilidad, precio final y adelanto.', 'success');
         $this->redirect('/mis-solicitudes');
     }
@@ -238,6 +245,11 @@ class EspacioController extends Controller {
             }
             $this->redirect('/admin/espacios');
             return;
+        }
+
+        $solicitudActualizada = $modelo->obtenerPorId((int)$id);
+        if ($solicitudActualizada !== null) {
+            (new Mailer())->notificarSolicitudEspacio($solicitudActualizada);
         }
 
         sessionFlash('success', "Solicitud #{$id} actualizada correctamente.", 'success');

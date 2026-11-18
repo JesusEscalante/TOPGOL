@@ -68,6 +68,105 @@ class Reserva extends Model {
     }
 
     /**
+     * Obtiene un resumen consolidado de una reserva individual o evento grupal
+     * para el envío de notificaciones automáticas por correo al cliente (RF26).
+     *
+     * @param int $id ID de la reserva de referencia
+     * @param string|null $grupo Código de evento_grupo opcional
+     * @return array<string, mixed>|null
+     */
+    public function obtenerResumenNotificacion(int $id, ?string $grupo = null): ?array {
+        $grupo = $grupo !== null ? trim($grupo) : '';
+        if ($grupo === '' && $id > 0) {
+            $base = $this->obtenerPorId($id);
+            if (!$base) {
+                return null;
+            }
+            if (!empty($base['evento_grupo'])) {
+                $grupo = (string)$base['evento_grupo'];
+            } else {
+                return [
+                    'id'              => (int)$base['id'],
+                    'es_evento'       => false,
+                    'evento_grupo'    => null,
+                    'cliente_nombre'  => !empty($base['cliente_nombre']) ? (string)$base['cliente_nombre'] : (string)$base['usuario_nombre'],
+                    'cliente_email'   => (string)$base['usuario_email'],
+                    'cancha_nombre'   => (string)$base['cancha_nombre'],
+                    'fecha'           => (string)$base['fecha'],
+                    'hora_inicio'     => substr((string)$base['hora_inicio'], 0, 5),
+                    'hora_fin'        => substr((string)$base['hora_fin'], 0, 5),
+                    'total_pago'      => (float)$base['total_pago'],
+                    'adelanto_monto'  => (float)$base['adelanto_monto'],
+                    'total_pagado'    => (float)($base['total_pagado'] ?? 0),
+                    'saldo_pendiente' => (float)($base['saldo_pendiente'] ?? 0),
+                    'estado'          => (string)$base['estado'],
+                    'pago_estado'     => (string)$base['pago_estado'],
+                    'metodo_pago'     => (string)($base['metodo_pago'] ?? 'yape'),
+                ];
+            }
+        }
+
+        if ($grupo === '') {
+            return null;
+        }
+
+        $sql = "SELECT r.*,
+                       u.nombre AS usuario_nombre,
+                       u.email AS usuario_email,
+                       c.nombre AS cancha_nombre,
+                       COALESCE((SELECT SUM(p.monto) FROM pagos p WHERE p.reserva_id = r.id AND p.estado = 'verificado'), 0) AS total_pagado,
+                       GREATEST(0, r.total_pago - COALESCE((SELECT SUM(p.monto) FROM pagos p WHERE p.reserva_id = r.id AND p.estado = 'verificado'), 0)) AS saldo_pendiente
+                FROM {$this->tabla} r
+                INNER JOIN usuarios u ON r.usuario_id = u.id
+                INNER JOIN canchas c ON r.cancha_id = c.id
+                WHERE r.evento_grupo = ?
+                ORDER BY r.id ASC";
+        $filas = $this->select($sql, [$grupo]);
+        if (empty($filas)) {
+            return null;
+        }
+
+        $primera = $filas[0];
+        $canchas = [];
+        $totalPago = 0.0;
+        $adelantoMonto = 0.0;
+        $totalPagado = 0.0;
+        $saldoPendiente = 0.0;
+
+        foreach ($filas as $f) {
+            $canchas[] = (string)$f['cancha_nombre'];
+            $totalPago += (float)$f['total_pago'];
+            $adelantoMonto += (float)$f['adelanto_monto'];
+            $totalPagado += (float)$f['total_pagado'];
+            $saldoPendiente += (float)$f['saldo_pendiente'];
+        }
+
+        $nCanchas = count($canchas);
+        $etiquetaCanchas = $nCanchas > 1
+            ? "Evento Grupal ({$nCanchas} canchas: " . implode(', ', $canchas) . ")"
+            : ($canchas[0] ?? 'Cancha');
+
+        return [
+            'id'              => (int)$primera['id'],
+            'es_evento'       => true,
+            'evento_grupo'    => $grupo,
+            'cliente_nombre'  => !empty($primera['cliente_nombre']) ? (string)$primera['cliente_nombre'] : (string)$primera['usuario_nombre'],
+            'cliente_email'   => (string)$primera['usuario_email'],
+            'cancha_nombre'   => $etiquetaCanchas,
+            'fecha'           => (string)$primera['fecha'],
+            'hora_inicio'     => substr((string)$primera['hora_inicio'], 0, 5),
+            'hora_fin'        => substr((string)$primera['hora_fin'], 0, 5),
+            'total_pago'      => round($totalPago, 2),
+            'adelanto_monto'  => round($adelantoMonto, 2),
+            'total_pagado'    => round($totalPagado, 2),
+            'saldo_pendiente' => round($saldoPendiente, 2),
+            'estado'          => (string)$primera['estado'],
+            'pago_estado'     => (string)$primera['pago_estado'],
+            'metodo_pago'     => (string)($primera['metodo_pago'] ?? 'yape'),
+        ];
+    }
+
+    /**
      * Obtiene el listado de reservas correspondientes a un usuario específico
      *
      * @param int $usuarioId

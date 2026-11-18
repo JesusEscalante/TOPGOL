@@ -7,6 +7,7 @@ use App\Core\Controller;
 use App\Models\Cancha;
 use App\Models\Pago;
 use App\Models\Reserva;
+use App\Services\Mailer;
 
 /**
  * ====================================================================
@@ -221,6 +222,15 @@ class PagoController extends Controller {
             $resultado = $modeloPago->registrarCobroSaldo($idReserva, $monto, $metodo, $adminId, $notas);
         }
 
+        if ($resultado['ok']) {
+            $modeloReservaCobro = new Reserva();
+            $modeloReservaCobro->sincronizarFinalizacionGrupoOId($idReserva, $grupo !== '' ? $grupo : null);
+            $resumenCobro = $modeloReservaCobro->obtenerResumenNotificacion($idReserva, $grupo !== '' ? $grupo : null);
+            if ($resumenCobro !== null) {
+                (new Mailer())->notificarCobroSaldo($resumenCobro, $monto, $metodo);
+            }
+        }
+
         if ($this->isAjax()) {
             if ($resultado['ok']) {
                 $this->json($resultado, 200);
@@ -231,8 +241,6 @@ class PagoController extends Controller {
 
         if ($resultado['ok']) {
             $metodoLbl = $metodo === 'niubiz' ? 'Niubiz POS' : ($metodo === 'yape' ? 'Yape' : 'Efectivo');
-            // Regla de cierre: si ya asistió y el saldo quedó en cero, la reserva pasa a finalizada
-            (new Reserva())->sincronizarFinalizacionGrupoOId($idReserva, $grupo !== '' ? $grupo : null);
             $msg = !empty($grupo)
                 ? "Cobro de saldo de S/ " . number_format($monto, 2) . " ({$metodoLbl}) registrado para el evento grupal."
                 : "Cobro de saldo de S/ " . number_format($monto, 2) . " ({$metodoLbl}) registrado con éxito para la reserva #{$idReserva}.";
@@ -271,6 +279,13 @@ class PagoController extends Controller {
             if ($ok) {
                 // Si la reserva estaba cancelada, solo se reactiva cuando su horario sigue libre
                 $horarioTomado = !$modeloReserva->actualizarEstado($idReserva, 'confirmada') && $modeloReserva->ultimoCodigo === 'ocupado';
+            }
+        }
+
+        if ($ok && !$horarioTomado) {
+            $resumen = $modeloReserva->obtenerResumenNotificacion($idReserva, $grupo !== '' ? $grupo : null);
+            if ($resumen !== null) {
+                (new Mailer())->notificarPagoVerificado($resumen);
             }
         }
 
@@ -330,6 +345,10 @@ class PagoController extends Controller {
         }
         if ($ok) {
             $modeloReserva->agregarObservacion($idReserva, $grupo, 'Pago rechazado: ' . $motivo);
+            $resumen = $modeloReserva->obtenerResumenNotificacion($idReserva, $grupo !== '' ? $grupo : null);
+            if ($resumen !== null) {
+                (new Mailer())->notificarPagoRechazado($resumen, $motivo);
+            }
         }
 
         if ($this->isAjax()) {
