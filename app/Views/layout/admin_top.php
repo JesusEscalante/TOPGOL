@@ -107,6 +107,7 @@ foreach ($nav as $itemNav) {
     <title><?= htmlspecialchars($titulo ?? 'Panel Administrador - TOP GOL') ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css">
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
     document.addEventListener('submit', function (e) {
@@ -240,6 +241,15 @@ foreach ($nav as $itemNav) {
     .pill.mut { background: #f1f5f9; color: #64748b; }
     /* Amarillo de Bootstrap casi no se lee sobre blanco: se usa ámbar oscuro en el panel */
     .adm-main .text-warning { color: #b45309 !important; }
+    /* Integración Tom Select - Panel Administrador TOP GOL */
+    .ts-wrapper.form-select, .ts-wrapper.single { padding: 0 !important; border: none !important; background: transparent !important; box-shadow: none !important; }
+    .ts-wrapper .ts-control { border-radius: 8px; border: 1px solid #cbd5e1; padding: 0.42rem 2rem 0.42rem 0.75rem; min-height: 36px; font-size: 0.86rem; color: #101c33; background-color: #fff; box-shadow: none; transition: border-color .15s, box-shadow .15s; }
+    .ts-wrapper.focus .ts-control { border-color: #1a7a3a !important; box-shadow: 0 0 0 3px rgba(26, 122, 58, 0.15) !important; }
+    .ts-wrapper.ts-sm .ts-control { min-height: 31px; padding: 0.22rem 1.8rem 0.22rem 0.6rem; font-size: 0.82rem; border-radius: 7px; }
+    .ts-dropdown { z-index: 2050 !important; border-radius: 10px !important; border: 1px solid #e2e8f0 !important; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.14) !important; font-size: 0.85rem; overflow: hidden; }
+    .ts-dropdown .option { padding: 8px 12px; }
+    .ts-dropdown .option.active, .ts-dropdown .option:hover { background-color: #eef7f0 !important; color: #166534 !important; font-weight: 600; }
+    .ts-dropdown .option.selected { background-color: #1a7a3a !important; color: #fff !important; font-weight: 600; }
     .dots-btn { border: none; background: none; color: #7c8aa0; font-size: 1rem; }
     .donut { width: 168px; height: 168px; border-radius: 50%; margin: 14px auto 8px; display: flex; align-items: center; justify-content: center; }
     .donut-in { width: 112px; height: 112px; border-radius: 50%; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; }
