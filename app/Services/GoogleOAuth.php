@@ -139,7 +139,7 @@ class GoogleOAuth
         }
 
         $userInfo = $this->getUserInfo($tokenData['access_token']);
-        if (!$userInfo) {
+        if (!$userInfo || empty($userInfo['verified_email'])) {
             return false;
         }
 

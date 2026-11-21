@@ -295,7 +295,8 @@ class AuthController extends Controller {
         sessionFlash('success', "¡Bienvenido a TOP GOL, {$usuario['nombre']}!", 'success');
 
         if ($usuario['rol'] === 'admin') {
-            $this->redirect('/reservas');
+            auditar('auth', 'login', "Inicio de sesión administrativo con Google ({$usuario['email']})", 'usuario', (int)$usuario['id']);
+            $this->redirect('/admin/dashboard');
         } else {
             $this->redirect('/mis-reservas');
         }
