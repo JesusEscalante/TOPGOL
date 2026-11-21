@@ -170,17 +170,20 @@ class Auditoria extends Model
 
     /**
      * Detecta la dirección IP real del cliente o administrador conectado.
+     * Prioriza REMOTE_ADDR para evitar suplantación mediante cabeceras HTTP_X_FORWARDED_FOR falsas.
      */
     private function obtenerIpCliente(): string
     {
-        if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+        $remote = trim((string)($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1'));
+        $proxiesLocales = ['127.0.0.1', '::1'];
+
+        if (in_array($remote, $proxiesLocales, true) && !empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
             $ips = explode(',', (string)$_SERVER['HTTP_X_FORWARDED_FOR']);
             $ip = trim($ips[0]);
             if (filter_var($ip, FILTER_VALIDATE_IP)) {
                 return $ip;
             }
         }
-        $remote = trim((string)($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1'));
         return filter_var($remote, FILTER_VALIDATE_IP) ? $remote : '127.0.0.1';
     }
 }
