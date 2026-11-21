@@ -64,7 +64,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Si tenemos cancha, fecha y hora inicio, consultar disponibilidad por API
         if (badgeDisponibilidad && selectCancha.value && inputFecha && inputFecha.value && inputHoraInicio && inputHoraInicio.value) {
-            const baseUrl = window.TOPGOL_BASE_URL || (window.location.origin + '/topgol');
+            const scriptEl = document.querySelector('script[src*="assets/js/main.js"]');
+            const scriptBase = scriptEl ? scriptEl.src.replace(/\/(?:public\/)?assets\/js\/main\.js(?:\?.*)?$/i, '') : window.location.origin;
+            const baseUrl = (window.TOPGOL_BASE_URL || scriptBase).replace(/\/$/, '');
             const url = `${baseUrl}/api/cancha/disponibilidad?cancha_id=${selectCancha.value}&fecha=${inputFecha.value}&hora_inicio=${inputHoraInicio.value}&duracion=${duracion}`;
 
             badgeDisponibilidad.className = 'badge bg-secondary';

@@ -109,6 +109,7 @@ foreach ($nav as $itemNav) {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
+    window.TOPGOL_BASE_URL = <?= json_encode(rtrim((string)URL_BASE, '/')) ?>;
     document.addEventListener('submit', function (e) {
         var form = e.target;
         if (!form || !form.getAttribute) return;
