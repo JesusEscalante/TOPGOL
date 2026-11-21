@@ -1,0 +1,6 @@
+# Endurecimiento de seguridad para carpeta de archivos subidos (RNF05 / RF03)
+Options -Indexes -ExecCGI
+AddHandler cgi-script .php .phtml .php3 .php4 .php5 .php7 .php8 .phar .pl .py .jsp .asp .htm .html .shtml .sh .cgi
+<FilesMatch "\.(?i:php|phtml|php[0-9]|phar|pl|py|cgi|sh|htaccess|htpasswd)$">
+    Require all denied
+</FilesMatch>

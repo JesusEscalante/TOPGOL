@@ -53,6 +53,7 @@ class Reserva extends Model {
                        u.nombre AS usuario_nombre,
                        u.email AS usuario_email,
                        u.telefono AS usuario_telefono,
+                       u.rol AS usuario_rol,
                        c.nombre AS cancha_nombre,
                        c.tipo AS cancha_tipo,
                        c.precio_hora AS cancha_precio_hora,
@@ -85,12 +86,15 @@ class Reserva extends Model {
             if (!empty($base['evento_grupo'])) {
                 $grupo = (string)$base['evento_grupo'];
             } else {
+                // Si la reserva fue registrada manualmente por un admin sin asociar cuenta de cliente,
+                // no enviar correos de cliente a la cuenta del administrador.
+                $esTitularAdmin = (($base['usuario_rol'] ?? '') === 'admin');
                 return [
                     'id'              => (int)$base['id'],
                     'es_evento'       => false,
                     'evento_grupo'    => null,
                     'cliente_nombre'  => !empty($base['cliente_nombre']) ? (string)$base['cliente_nombre'] : (string)$base['usuario_nombre'],
-                    'cliente_email'   => (string)$base['usuario_email'],
+                    'cliente_email'   => $esTitularAdmin ? '' : (string)$base['usuario_email'],
                     'cancha_nombre'   => (string)$base['cancha_nombre'],
                     'fecha'           => (string)$base['fecha'],
                     'hora_inicio'     => substr((string)$base['hora_inicio'], 0, 5),
@@ -113,6 +117,7 @@ class Reserva extends Model {
         $sql = "SELECT r.*,
                        u.nombre AS usuario_nombre,
                        u.email AS usuario_email,
+                       u.rol AS usuario_rol,
                        c.nombre AS cancha_nombre,
                        COALESCE((SELECT SUM(p.monto) FROM pagos p WHERE p.reserva_id = r.id AND p.estado = 'verificado'), 0) AS total_pagado,
                        GREATEST(0, r.total_pago - COALESCE((SELECT SUM(p.monto) FROM pagos p WHERE p.reserva_id = r.id AND p.estado = 'verificado'), 0)) AS saldo_pendiente
@@ -127,6 +132,7 @@ class Reserva extends Model {
         }
 
         $primera = $filas[0];
+        $esTitularAdmin = (($primera['usuario_rol'] ?? '') === 'admin');
         $canchas = [];
         $totalPago = 0.0;
         $adelantoMonto = 0.0;
@@ -151,7 +157,7 @@ class Reserva extends Model {
             'es_evento'       => true,
             'evento_grupo'    => $grupo,
             'cliente_nombre'  => !empty($primera['cliente_nombre']) ? (string)$primera['cliente_nombre'] : (string)$primera['usuario_nombre'],
-            'cliente_email'   => (string)$primera['usuario_email'],
+            'cliente_email'   => $esTitularAdmin ? '' : (string)$primera['usuario_email'],
             'cancha_nombre'   => $etiquetaCanchas,
             'fecha'           => (string)$primera['fecha'],
             'hora_inicio'     => substr((string)$primera['hora_inicio'], 0, 5),
@@ -524,15 +530,19 @@ class Reserva extends Model {
         if ($min <= 0) {
             return 0;
         }
+        // Solo expiran las reservas pendientes que NO tienen comprobante adjunto en revisión
         $ids = $this->select(
-            "SELECT id FROM reservas WHERE estado = 'pendiente' AND created_at < (NOW() - INTERVAL ? MINUTE)",
+            "SELECT id FROM reservas
+             WHERE estado = 'pendiente'
+               AND (pago_estado = 'pendiente' OR comprobante_ruta IS NULL OR comprobante_ruta = '')
+               AND created_at < (NOW() - INTERVAL ? MINUTE)",
             [$min]
         );
         if (empty($ids)) {
             return 0;
         }
         $list = implode(',', array_map(static fn($f) => (int)$f['id'], $ids));
-        $nota = 'Vencida automáticamente por falta de pago en el plazo de ' . $min . ' minutos.';
+        $nota = 'Vencida automáticamente por falta de comprobante de pago en el plazo de ' . $min . ' minutos.';
         $this->execute(
             "UPDATE reservas SET estado = 'cancelada', pago_estado = 'rechazado',
              observaciones = CONCAT(COALESCE(observaciones, ''), CASE WHEN COALESCE(observaciones, '') = '' THEN '' ELSE '\n' END, ?),
@@ -540,7 +550,7 @@ class Reserva extends Model {
             [$nota]
         );
         $this->execute(
-            "UPDATE pagos SET estado = 'rechazado' WHERE estado = 'en_revision' AND reserva_id IN ({$list})"
+            "UPDATE pagos SET estado = 'rechazado' WHERE estado IN ('pendiente', 'en_revision') AND reserva_id IN ({$list})"
         );
         return count($ids);
     }
@@ -777,7 +787,8 @@ class Reserva extends Model {
      */
     public function cancelar(int $id, int $usuarioId, bool $esAdmin = false): bool {
         if ($esAdmin) {
-            $sql = "UPDATE {$this->tabla} SET estado = 'cancelada', updated_at = NOW() WHERE id = ?";
+            $sql = "UPDATE {$this->tabla} SET estado = 'cancelada', updated_at = NOW()
+                    WHERE id = ? AND estado IN ('pendiente', 'confirmada')";
             $params = [$id];
         } else {
             $sql = "UPDATE {$this->tabla} SET estado = 'cancelada', updated_at = NOW()
