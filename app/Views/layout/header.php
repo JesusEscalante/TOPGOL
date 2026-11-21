@@ -45,6 +45,7 @@ $navActive = static function (string ...$rutas) use ($rutaActual): string {
     <link rel="stylesheet" href="<?= url('assets/css/style.css') ?>">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
+    window.TOPGOL_BASE_URL = <?= json_encode(rtrim((string)URL_BASE, '/')) ?>;
     document.addEventListener('submit', function (e) {
         var form = e.target;
         if (!form || !form.getAttribute) return;

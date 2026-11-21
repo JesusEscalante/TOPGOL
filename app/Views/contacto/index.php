@@ -51,6 +51,8 @@
                 <p class="text-muted" style="font-size:.82rem;">Respuesta en el día por el medio que prefieras.</p>
                 <form action="<?= url('/contacto/enviar') ?>" method="POST" class="needs-validation mt-3" novalidate>
                     <?= csrf_field() ?>
+                    <!-- Campo honeypot anti-spam -->
+                    <input type="text" name="website" value="" class="d-none" tabindex="-1" autocomplete="off">
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label fw-semibold" style="font-size:.8rem;">Nombre y apellido <span class="text-danger">*</span></label>

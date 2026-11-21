@@ -150,9 +150,11 @@ $router->get('/mis-solicitudes', 'EspacioController@misSolicitudes', ['auth']);
 $router->get('/admin/espacios', 'EspacioController@adminIndex', ['admin']);
 $router->post('/admin/espacios/estado/{id}', 'EspacioController@updateStatus', ['admin']);
 
-// Contacto (público)
+// Contacto (público y bandeja administrativa)
 $router->get('/contacto', 'ContactoController@index');
 $router->post('/contacto/enviar', 'ContactoController@enviar');
+$router->get('/admin/contactos', 'ContactoController@adminIndex', ['admin']);
+$router->post('/admin/contactos/atender/{id}', 'ContactoController@atender', ['admin']);
 
 // Perfil de usuario (admin y clientes)
 $router->get('/perfil', 'UsuarioController@perfil', ['auth']);
